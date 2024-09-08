@@ -5,7 +5,7 @@ run-name: ${{ github.actor }} is releasing Quarkus SSE Server 🚀
 on: [push, pull_request]
 
 jobs:
-  Release Helm Quarkus SSE Server:
+  Release-Helm-Quarkus-SSE-Server:
     runs-on: ubuntu-latest
 
     steps:
