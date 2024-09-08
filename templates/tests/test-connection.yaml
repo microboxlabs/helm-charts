@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "helm-quarkus-sse.fullname" . }}-test-connection"
+  labels:
+    {{- include "helm-quarkus-sse.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "helm-quarkus-sse.fullname" . }}:{{ .Values.service.port }}']
+  restartPolicy: Never
