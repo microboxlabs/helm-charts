@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "helm-quarkus-sse.fullname" . }}
+  name: {{ include "quarkus-sse.fullname" . }}
   labels:
-    {{- include "helm-quarkus-sse.labels" . | nindent 4 }}
+    {{- include "quarkus-sse.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "helm-quarkus-sse.fullname" . }}
+    name: {{ include "quarkus-sse.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:

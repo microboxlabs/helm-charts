@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "helm-quarkus-sse.name" -}}
+{{- define "quarkus-sse.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
@@ -10,7 +10,7 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "helm-quarkus-sse.fullname" -}}
+{{- define "quarkus-sse.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -26,16 +26,16 @@ If release name contains chart name it will be used as a full name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "helm-quarkus-sse.chart" -}}
+{{- define "quarkus-sse.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "helm-quarkus-sse.labels" -}}
-helm.sh/chart: {{ include "helm-quarkus-sse.chart" . }}
-{{ include "helm-quarkus-sse.selectorLabels" . }}
+{{- define "quarkus-sse.labels" -}}
+helm.sh/chart: {{ include "quarkus-sse.chart" . }}
+{{ include "quarkus-sse.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -45,17 +45,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "helm-quarkus-sse.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "helm-quarkus-sse.name" . }}
+{{- define "quarkus-sse.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "quarkus-sse.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "helm-quarkus-sse.serviceAccountName" -}}
+{{- define "quarkus-sse.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "helm-quarkus-sse.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "quarkus-sse.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
