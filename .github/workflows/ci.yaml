@@ -1,11 +1,11 @@
-name: Helm Relase Quarkus SSE Server
+name: Relase Helm Charts
 
-run-name: ${{ github.actor }} is releasing Quarkus SSE Server 🚀
+run-name: ${{ github.actor }} is releasing {{ github.event.repository.name }} 🚀
 
 on: [push, pull_request]
 
 jobs:
-  Release-quarkus-sse-Server:
+  Release-Helm-Charts:
     runs-on: ubuntu-latest
 
     steps:
