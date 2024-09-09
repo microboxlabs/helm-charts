@@ -1,6 +1,6 @@
 name: Relase Helm Charts
 
-run-name: ${{ github.actor }} is releasing {{ github.event.repository.name }} 🚀
+run-name: ${{ github.actor }} is releasing {{ github.repository.name }} 🚀
 
 on: [push, pull_request]
 
@@ -11,8 +11,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.6.0
+        uses: helm/chart-releaser-action@v1.5.0
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
