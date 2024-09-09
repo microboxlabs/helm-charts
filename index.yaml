@@ -3,6 +3,16 @@ entries:
   quarkus-sse:
   - apiVersion: v2
     appVersion: 1.16.0
+    created: "2024-09-09T15:38:37.432995838Z"
+    description: A Helm chart for Kubernetes
+    digest: ae1e178561919533d73412b7c34b1014e86443cceb1fc0ef8f4bb0b3997ff38f
+    name: quarkus-sse
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/quarkus-sse-0.1.2/quarkus-sse-0.1.2.tgz
+    version: 0.1.2
+  - apiVersion: v2
+    appVersion: 1.16.0
     created: "2024-09-09T15:22:02.650683676Z"
     description: A Helm chart for Kubernetes
     digest: eb435e91a648c31fd477e8976f883f8a6ea0fce30db8aa67d8bbbbe9e34268ab
@@ -21,4 +31,4 @@ entries:
     urls:
     - quarkus-sse/quarkus-sse-0.1.0.tgz
     version: 0.1.0
-generated: "2024-09-09T15:22:02.65069679Z"
+generated: "2024-09-09T15:38:37.433011978Z"
