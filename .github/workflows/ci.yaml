@@ -6,6 +6,9 @@ on: [push, pull_request]
 
 jobs:
   Release-Helm-Charts:
+    permissions:
+      contents: write
+
     runs-on: ubuntu-latest
 
     steps:
