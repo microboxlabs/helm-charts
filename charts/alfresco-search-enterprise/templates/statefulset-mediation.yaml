@@ -1,0 +1,78 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  {{- $ctx := dict "Values" (dict "nameOverride" (printf "%s-%s" (.Values.nameOverride | default .Chart.Name) "mediation")) "Chart" .Chart "Release" .Release }}
+  name: {{ template "alfresco-search-enterprise.name" $ctx }}
+spec:
+  serviceName: {{ template "alfresco-search-enterprise.name" $ctx }}
+  selector:
+    matchLabels:
+      {{- include "alfresco-search-enterprise.mediation.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "alfresco-search-enterprise.mediation.labels" . | nindent 8 }}
+    spec:
+      {{- include "alfresco-common.imagePullSecrets" . | indent 6 }}
+      {{- include "alfresco-common.component-pod-security-context" .Values | indent 4 }}
+      containers:
+      {{- with .Values.liveIndexing.mediation }}
+        - name: {{ template "alfresco-search-enterprise.name" $ctx }}
+          image: {{ .image.repository }}:{{ .image.tag }}
+          imagePullPolicy: {{ .image.pullPolicy }}
+          {{- include "alfresco-common.component-security-context" $.Values | indent 8 }}
+          env:
+            {{- include "alfresco-search-enterprise.activemq.secret.env" $ | nindent 12 }}
+            {{- include "alfresco-search-enterprise.activemq.cm.env" $ | nindent 12 }}
+            {{- include "alfresco-common.spring.activemq.env" $ | nindent 12 }}
+            {{- include "alfresco-search-enterprise.env" $ | nindent 12 }}
+            {{- $atsCtx := dict "Values" (dict "nameOverride" (printf "%s-%s" ($.Values.nameOverride | default $.Chart.Name) "ats")) "Chart" $.Chart "Release" $.Release }}
+            {{- $ats_cm := coalesce $.Values.ats.existingConfigMap.name (include "alfresco-search-enterprise.fullname" $atsCtx) }}
+            - name: ALFRESCO_ACCEPTEDCONTENTMEDIATYPESCACHE_BASEURL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ $ats_cm }}
+                  key: {{ $.Values.ats.existingConfigMap.keys.transform_url }}
+            {{- range $key, $val := deepCopy $.Values.liveIndexing.environment | mustMerge .environment }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 300
+            timeoutSeconds: 60
+            httpGet:
+              path: /actuator/health
+              port: http
+          readinessProbe:
+            initialDelaySeconds: 60
+            timeoutSeconds: 60
+            httpGet:
+              path: /actuator/health
+              port: http
+          resources: {{- toYaml $.Values.resources | nindent 12 }}
+          {{- with coalesce .extraVolumeMounts $.Values.extraVolumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with coalesce .extraVolumes $.Values.extraVolumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}

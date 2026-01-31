@@ -1,0 +1,69 @@
+{{- if .Values.tika.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "alfresco-transform-service.tika.fullname" . }}
+  labels:
+    {{- include "alfresco-transform-service.tika.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.tika.autoscaling.enabled }}
+  replicas: {{ .Values.tika.replicaCount }}
+  {{ end }}
+  selector:
+    matchLabels:
+      {{- include "alfresco-transform-service.tika.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      {{- toYaml .Values.global.strategy.rollingUpdate | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- include "alfresco-transform-service.configsums" (dict "Context" $ "Component" "tika") | indent 8 }}
+        {{- with .Values.tika.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "alfresco-transform-service.tika.labels" . | nindent 8 }}
+        {{- with .Values.tika.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "alfresco-common.imagePullSecrets" . | indent 6 }}
+      serviceAccountName: {{ include "alfresco-transform-service.serviceAccountName" . }}
+      {{- include "alfresco-common.component-pod-security-context" .Values.tika | indent 4 }}
+      containers:
+        - name: {{ template "alfresco-transform-service.tika.name" . }}
+          image: "{{ .Values.tika.image.repository }}:{{ .Values.tika.image.tag }}"
+          imagePullPolicy: {{ .Values.tika.image.pullPolicy }}
+          {{- include "component-security-context" .Values.tika | indent 8 }}
+          envFrom:
+            - configMapRef:
+                name: {{ template "alfresco-transform-service.tika.fullname" . }}
+          env:
+            {{- include "alfresco-transform-service.messageBroker.env" $ | nindent 12 }}
+          ports:
+            - containerPort: {{ .Values.tika.image.internalPort }}
+          resources: {{- toYaml .Values.tika.resources | nindent 12 }}
+          {{- with .Values.tika.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{ include "alfresco-transform-service.probes" .Values.tika | nindent 10 }}
+      {{- with .Values.tika.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tika.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tika.affinity }}
+      affinity:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tika.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

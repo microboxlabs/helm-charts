@@ -1,0 +1,84 @@
+{{- range $serviceName := list "content" "metadata" "path" }}
+{{- $service := index $.Values.liveIndexing $serviceName }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include (printf "alfresco-search-enterprise.%s.fullname" $serviceName) $ }}
+  labels:
+    {{- include (printf "alfresco-search-enterprise.%s.labels" $serviceName) $ | nindent 4 }}
+spec:
+  replicas: {{ $service.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      {{- include (printf "alfresco-search-enterprise.%s.selectorLabels" $serviceName) $ | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+      {{- with $.Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include (printf "alfresco-search-enterprise.%s.labels" $serviceName) $ | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "alfresco-search-enterprise.serviceAccountName" $ }}
+      {{- include "alfresco-common.component-pod-security-context" $.Values | indent 4 }}
+      {{- include "alfresco-common.imagePullSecrets" $ | indent 6 }}
+      containers:
+        - name: {{ include (printf "alfresco-search-enterprise.%s.name" $serviceName) $ }}
+          image: {{ $service.image.repository }}:{{ $service.image.tag }}
+          imagePullPolicy: {{ $service.image.pullPolicy }}
+            {{- include "alfresco-common.component-security-context" $.Values | indent 8 }}
+          env:
+            {{- include "alfresco-search-enterprise.activemq.secret.env" $ | nindent 12 }}
+            {{- include "alfresco-search-enterprise.activemq.cm.env" $ | nindent 12 }}
+            {{- include "alfresco-common.spring.activemq.env" . | nindent 12 }}
+            {{- include "alfresco-search-enterprise.config.spring.envCredentials" $ | nindent 12 }}
+            {{- include "alfresco-search-enterprise.config.spring.es.env" $ | nindent 12 }}
+            {{- include "alfresco-search-enterprise.env" $ | nindent 12 }}
+            {{- $atsCtx := dict "Values" (dict "nameOverride" (printf "%s-%s" ($.Values.nameOverride | default $.Chart.Name) "ats")) "Chart" $.Chart "Release" $.Release }}
+            {{- $ats_cm := coalesce $.Values.ats.existingConfigMap.name (include "alfresco-search-enterprise.fullname" $atsCtx) }}
+            - name: ALFRESCO_ACCEPTEDCONTENTMEDIATYPESCACHE_BASEURL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ $ats_cm }}
+                  key: {{ $.Values.ats.existingConfigMap.keys.transform_url }}
+            - name: ALFRESCO_SHAREDFILESTORE_BASEURL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ $ats_cm }}
+                  key: {{ $.Values.ats.existingConfigMap.keys.sfs_url }}
+            {{- range $key, $val := deepCopy $.Values.liveIndexing.environment | mustMerge ($service.environment) }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml $service.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml $service.readinessProbe | nindent 12 }}
+          resources: {{- toYaml $.Values.resources | nindent 12 }}
+          {{- with coalesce $service.extraVolumeMounts $.Values.extraVolumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with $.Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $service.affinity }}
+      affinity:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with coalesce $service.extraVolumes $.Values.extraVolumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

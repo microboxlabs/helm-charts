@@ -1,0 +1,142 @@
+---
+global:
+  alfrescoRegistryPullSecrets: quay-registry-secret
+  # -- Global additional labels that can be set at parent/umbrella chart level
+  # These will be merged with chart-level additionalLabels, with chart-level taking precedence
+  additionalLabels: {}
+# -- Additional labels to be added to all resources (deployments, statefulsets, services, pods, etc.)
+# Example:
+#   Product: k8s
+#   Environment: DEV
+additionalLabels: {}
+strategy:
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+replicaCount: 2
+nodeSelector: {}
+image:
+  repository: quay.io/alfresco/alfresco-ms-teams-service
+  tag: 2.0.8
+  pullPolicy: IfNotPresent
+  internalPort: 3978
+service:
+  name: ms-teams-service
+  type: ClusterIP
+  externalPort: 80
+ingress:
+  # -- Enable or disable ingress resource creation
+  enabled: true
+  className: nginx
+  hosts:
+    - paths:
+        - path: /ms-teams-service
+          pathType: Prefix
+  tls: []
+  annotations: {}
+  extraAnnotations: {}
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 33041
+resources:
+  requests:
+    cpu: "0.5"
+    memory: "1000Mi"
+  limits:
+    cpu: "1"
+    memory: "1000Mi"
+readinessProbe:
+  tcpSocket:
+    port: service-port
+  initialDelaySeconds: 20
+  periodSeconds: 60
+  timeoutSeconds: 10
+livenessProbe:
+  tcpSocket:
+    port: service-port
+  initialDelaySeconds: 10
+  failureThreshold: 1
+  periodSeconds: 20
+  timeoutSeconds: 10
+environment: null
+alfresco:
+  baseUrl: change_me_alf_base_url
+  digitalWorkspace:
+    contextPath: /workspace/
+microsoft:
+  app:
+    id: null
+    password: null
+    oauth:
+      connectionName: alfresco
+    existingSecret:
+      name: null
+      keys:
+        id: MICROSOFT_APP_ID
+        password: MICROSOFT_APP_PASSWORD
+teams:
+  chat:
+    filenameEnabled: true
+    metadataEnabled: true
+    imageEnabled: true
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  create: true
+  # -- Annotations to add to the service account
+  annotations: {}
+  # -- The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: msteams-sa
+# -- Affinity settings for pod assignment (can contain templates if passed as string)
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      # -- Prefer to schedule pods in different zones
+      - weight: 10
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - >-
+                    {{ template "alfresco-connector-msteams.name" . }}
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - "{{ .Release.Name }}"
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - "{{ $.Chart.Name }}"
+          topologyKey: topology.kubernetes.io/zone
+      # -- Prefer to schedule pods in different nodes
+      - weight: 5
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - >-
+                    {{ template "alfresco-connector-msteams.name" . }}
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - "{{ .Release.Name }}"
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - "{{ $.Chart.Name }}"
+          topologyKey: kubernetes.io/hostname
+repository:
+  # -- URL of the Alfresco repository
+  url: null
+  existingConfigMap:
+    # -- Alternatively, provide repository connection details via an existing
+    # configmap
+    name: null
+    keys:
+      # -- Key within the configmap holding the full url to connect to the
+      # alfresco repository
+      url: ALFRESCO_BASE_URL

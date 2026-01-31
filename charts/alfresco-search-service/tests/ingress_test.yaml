@@ -1,0 +1,103 @@
+---
+suite: test ingress
+templates:
+  - ingress.yaml
+tests:
+  - it: should reference the existing secret when ingress is nginx
+    set:
+      ingress:
+        enabled: true
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-solr
+      - equal:
+          path: spec.ingressClassName
+          value: nginx
+      - equal:
+          path: metadata.annotations['nginx.ingress.kubernetes.io/auth-secret']
+          value: RELEASE-NAME-solr-ingress-credentials
+
+  - it: should contains values overrides
+    values:
+      - values/ingress_enabled.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations['nginx.ingress.kubernetes.io/auth-secret']
+          value: staging/solradmin
+      - equal:
+          path: metadata.annotations['nginx.ingress.kubernetes.io/enable-cors']
+          value: true
+      - equal:
+          path: metadata.annotations['nginx.ingress.kubernetes.io/auth-type']
+          value: basic
+
+  - it: should not contains the nginx secret annotation when ingress class is not nginx
+    set:
+      ingress:
+        enabled: true
+        className: traefik
+    asserts:
+      - isNull:
+          path: metadata.annotations['nginx.ingress.kubernetes.io/auth-secret']
+
+  - it: should render labels for ingress
+    set:
+      nameOverride: testName
+      ingress:
+        enabled: true
+    chart:
+      version: 1.0.0
+      appVersion: 2.0.0
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            app.kubernetes.io/component: alfresco-search-service
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: testName
+            app.kubernetes.io/version: 2.0.0
+            helm.sh/chart: alfresco-search-service-1.0.0
+
+  - it: should render default rules
+    set:
+      ingress:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.rules
+          value:
+            - host:
+              http:
+                paths:
+                  - backend:
+                      service:
+                        name: RELEASE-NAME-solr
+                        port:
+                          number: 80
+                    path: /solr
+                    pathType: Prefix
+  - it: should render rules with host
+    set:
+      ingress:
+        enabled: true
+        hosts:
+          - host: testhost
+            paths:
+            - path: /solr
+              pathType: Prefix
+    asserts:
+      - equal:
+          path: spec.rules
+          value:
+            - host: testhost
+              http:
+                paths:
+                  - backend:
+                      service:
+                        name: RELEASE-NAME-solr
+                        port:
+                          number: 80
+                    path: /solr
+                    pathType: Prefix

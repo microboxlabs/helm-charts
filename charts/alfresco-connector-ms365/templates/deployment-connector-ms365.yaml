@@ -1,0 +1,55 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "alfresco-connector-ms365.fullname" . }}
+  labels:
+    {{- include "alfresco-connector-ms365.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "alfresco-connector-ms365.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      {{- toYaml .Values.strategy.rollingUpdate | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- if not .Values.repository.existingConfigMap }}
+        checksum/config: {{ include (print $.Template.BasePath "/config-connector-ms365.yaml") . | sha256sum }}
+        {{- end }}
+      labels:
+        {{- include "alfresco-connector-ms365.labels" . | nindent 8 }}
+    spec:
+      {{- include "alfresco-common.imagePullSecrets" . | indent 6 }}
+      serviceAccountName: {{ include "alfresco-connector-ms365.serviceAccountName" . }}
+      {{- include "alfresco-common.component-pod-security-context" .Values | indent 4 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "alfresco-common.component-security-context" .Values | indent 8 }}
+          env:
+            {{- include "alfresco-connector-ms365.env" $ | indent 12 }}
+          ports:
+            - name: service-port
+              containerPort: {{ .Values.image.internalPort }}
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,69 @@
+{{- if .Values.pdfrenderer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "alfresco-transform-service.pdfrenderer.fullname" . }}
+  labels:
+    {{- include "alfresco-transform-service.pdfrenderer.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.pdfrenderer.autoscaling.enabled }}
+  replicas: {{ .Values.pdfrenderer.replicaCount }}
+  {{ end }}
+  selector:
+    matchLabels:
+      {{- include "alfresco-transform-service.pdfrenderer.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      {{- toYaml .Values.global.strategy.rollingUpdate | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- include "alfresco-transform-service.configsums" (dict "Context" $ "Component" "pdfrenderer") | indent 8 }}
+        {{- with .Values.pdfrenderer.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "alfresco-transform-service.pdfrenderer.labels" . | nindent 8 }}
+        {{- with .Values.pdfrenderer.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "alfresco-common.imagePullSecrets" . | indent 6 }}
+      serviceAccountName: {{ include "alfresco-transform-service.serviceAccountName" . }}
+      {{- include "alfresco-common.component-pod-security-context" .Values.pdfrenderer | indent 4 }}
+      containers:
+        - name: {{ template "alfresco-transform-service.pdfrenderer.name" . }}
+          image: "{{ .Values.pdfrenderer.image.repository }}:{{ .Values.pdfrenderer.image.tag }}"
+          imagePullPolicy: {{ .Values.pdfrenderer.image.pullPolicy }}
+          {{- include "component-security-context" .Values.pdfrenderer | indent 8 }}
+          envFrom:
+            - configMapRef:
+                name: {{ template "alfresco-transform-service.pdfrenderer.fullname" . }}
+          env:
+            {{- include "alfresco-transform-service.messageBroker.env" $ | nindent 12 }}
+          ports:
+            - containerPort: {{ .Values.pdfrenderer.image.internalPort }}
+          resources: {{- toYaml .Values.pdfrenderer.resources | nindent 12 }}
+          {{- with .Values.pdfrenderer.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{ include "alfresco-transform-service.probes" .Values.pdfrenderer | nindent 10 }}
+      {{- with .Values.pdfrenderer.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.pdfrenderer.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.pdfrenderer.affinity }}
+      affinity:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.pdfrenderer.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

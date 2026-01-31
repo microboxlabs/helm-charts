@@ -1,0 +1,51 @@
+---
+repository:
+  # -- Just for passing the required values during the CI tests; real mock is done in `environment.JAVA_OPTS`
+  host: dummy-repo
+  port: 80
+environment:
+  JAVA_OPTS: >-
+    -Dsql.db.pool.initial=25
+    -Dsql.db.pool.max=75
+    -Dsync.metrics.reporter.graphite.enabled=false
+    -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
+    -Drepo.syncconfig.url=https://alfresco.github.io/alfresco-helm-charts/test/alfresco/service/devicesync/config
+    -Dsync.authentication.basicAuthUrl=https://alfresco.github.io/alfresco-helm-charts/test/alfresco/s/api/authentication
+activemq:
+  fullnameOverride: mqsync
+  adminUser:
+    user: &mquser admin
+    password: &mqpass admin
+messageBroker:
+  url: failover:(nio://mqsync-broker:61616)
+  username: *mquser
+  password: *mqpass
+postgresql:
+  image:
+    repository: bitnamilegacy/postgresql
+    tag: 16.6.0
+  fullnameOverride: pgsync
+  auth:
+    enablePostgresUser: false
+    username: &dbuser alfresco
+    password: &dbpass admin
+    database: alfresco-sync
+  primary:
+    extendedConfiguration: |
+      shared_buffers = 256MB
+      max_connections = 100
+      wal_level = minimal
+      max_wal_senders = 0
+      max_replication_slots = 0
+      effective_cache_size = 1024GB
+      log_min_messages = LOG
+  resources:
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+database:
+  url: jdbc:postgresql://pgsync/alfresco-sync
+  username: *dbuser
+  password: *dbpass
+tags:
+  ci: true

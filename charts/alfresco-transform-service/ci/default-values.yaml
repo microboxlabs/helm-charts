@@ -1,0 +1,83 @@
+activemq:
+  fullnameOverride: activemq
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  adminUser:
+    user: admin
+    password: admin
+
+messageBroker:
+  url: failover:(nio://activemq-broker:61616)?timeout=3000&jms.useCompression=true
+  user: admin
+  password: admin
+
+transformrouter:
+  replicaCount: 1
+pdfrenderer:
+  livenessProbe:
+    initialDelaySeconds: 30
+  resources:
+    requests:
+      cpu: "0.01"
+      memory: "256Mi"
+    limits:
+      memory: "512Mi"
+  replicaCount: 1
+imagemagick:
+  livenessProbe:
+    initialDelaySeconds: 30
+  resources:
+    requests:
+      cpu: "0.01"
+      memory: "256Mi"
+    limits:
+      memory: "512Mi"
+  replicaCount: 1
+libreoffice:
+  livenessProbe:
+    initialDelaySeconds: 30
+  resources:
+    requests:
+      cpu: "0.01"
+      memory: "512Mi"
+    limits:
+      memory: "1024Mi"
+  replicaCount: 1
+tika:
+  livenessProbe:
+    initialDelaySeconds: 30
+  resources:
+    requests:
+      cpu: "0.01"
+      memory: "256Mi"
+    limits:
+      memory: "512Mi"
+  replicaCount: 1
+transformmisc:
+  livenessProbe:
+    initialDelaySeconds: 30
+  resources:
+    requests:
+      cpu: "0.01"
+      memory: "256Mi"
+    limits:
+      memory: "512Mi"
+  replicaCount: 1
+filestore:
+  livenessProbe:
+    initialDelaySeconds: 30
+  resources:
+    requests:
+      cpu: "0.01"
+      memory: "128Mi"
+    limits:
+      memory: "700Mi"
+  replicaCount: 1
+
+tags:
+  ci: true

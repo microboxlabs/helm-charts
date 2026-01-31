@@ -1,0 +1,200 @@
+---
+# -- Additional labels to be added to all resources (deployments, statefulsets, services, pods, etc.)
+# Example:
+#   Product: k8s
+#   Environment: DEV
+additionalLabels: {}
+replicaCount: 1
+# -- Global definition of Docker registry pull secret which can be overridden
+# from parent ACS Helm chart(s)
+global:
+  alfrescoRegistryPullSecrets: quay-registry-secret
+  # -- Global additional labels that can be set at parent/umbrella chart level
+  # These will be merged with chart-level additionalLabels, with chart-level taking precedence
+  additionalLabels: {}
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+podAnnotations: {}
+podLabels: {}
+podSecurityContext:
+  runAsUser: 33020
+  runAsGroup: 1000
+  runAsNonRoot: true
+  fsGroup: 1000
+image:
+  repository: quay.io/alfresco/service-sync
+  tag: 5.3.0
+  pullPolicy: IfNotPresent
+  internalPort: 9090
+environment:
+  JAVA_OPTS: >-
+    -Dsql.db.pool.initial=25
+    -Dsql.db.pool.max=75
+    -Dsync.metrics.reporter.graphite.enabled=false
+    -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
+service:
+  name: syncservice
+  type: NodePort
+  externalPort: 80
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  create: true
+  # -- Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "alfresco-sync"
+resources:
+  requests:
+    cpu: "0.5"
+    memory: "800Mi"
+  limits:
+    cpu: "2"
+    memory: "2000Mi"
+livenessProbe:
+  httpGet:
+    path: /alfresco/healthcheck
+    port: serviceport
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 10
+readinessProbe:
+  httpGet:
+    path: /alfresco/healthcheck
+    port: serviceport
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  failureThreshold: 12
+  timeoutSeconds: 10
+repository:
+  # -- ACS repository host
+  host: null
+  # -- ACS repository port
+  port: null
+  # -- ACS repository port
+  scheme: null
+  existingConfigMap:
+    # -- Name of a pre-existing configmap containing message broker details
+    name: null
+    keys:
+      # -- configmap key where to find the URL of the message broker
+      host: REPO_HOST
+      port: REPO_PORT
+      scheme: REPO_SCHEME
+messageBroker:
+  # -- A failover URI formatted string, see:
+  # https://activemq.apache.org/failover-transport-reference
+  url: null
+  # -- A name that will be used as a base to get broker connection details
+  nameOverride: activemq
+  # -- Username to authenticate as.
+  username: null
+  # -- Credential to use to authenticate to the broker.
+  password: null
+  existingConfigMap:
+    # -- Name of a pre-existing configmap containing message broker details
+    name: null
+    keys:
+      # -- configmap key where to find the URL of the message broker
+      url: BROKER_URL
+  existingSecret:
+    # -- Name of a pre-existing secret containing message broker credentials
+    name: null
+    keys:
+      # -- Key within the secret holding the message broker username
+      username: BROKER_USERNAME
+      # -- Key within the secret holding the message broker password
+      password: BROKER_PASSWORD
+database:
+  # -- The JDBC Driver to connect to the DB.
+  # If different from the default make sure your container image ships it.
+  driver: org.postgresql.Driver
+  # -- JDBC url to connect to the external DB
+  url: null
+  # -- JDBC username to use to connect to the DB
+  username: null
+  # -- JDBC password to use to connect to the DB
+  password: null
+  existingConfigMap:
+    name: null
+    keys:
+      # -- configmap key where to find the URL of the database
+      url: DATABASE_URL
+      # -- configmap key where to find the JDBC driver class to use.
+      # The configmap may leverage the alfresco-repository.db.cm named
+      # template to auto-generate it from the sole url parameter.
+      driver: DATABASE_DRIVER
+  existingSecret:
+    # -- Name of a pre-existing secret containing database credentials
+    name: null
+    keys:
+      # -- Key within the secret holding the database username
+      username: DATABASE_USERNAME
+      # -- Key within the secret holding the database password
+      password: DATABASE_PASSWORD
+ingress:
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /alfresco/$2
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "sync_affinity_route"
+    nginx.ingress.kubernetes.io/session-cookie-hash: "sha1"
+  tls: []
+  hosts:
+    - paths:
+        - path: /syncservice(/|$)(.*)
+          pathType: ImplementationSpecific
+nodeSelector: {}
+tolerations: []
+terminationGracePeriodSeconds: 60
+tags:
+  # -- A chart tag used for Hyland's CI purpose. Do not set it to true.
+  ci: false
+hazelcast:
+  service:
+    port: 5701
+    type: ClusterIP
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      # -- Prefer to schedule pods on nodes with different zones
+      - weight: 10
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - >-
+                    {{ template "alfresco-sync-service.name" $ }}
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - "{{ $.Release.Name }}"
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - "{{ $.Chart.Name }}"
+          topologyKey: topology.kubernetes.io/zone
+      # -- Prefer to schedule pods on nodes with different nodes
+      - weight: 5
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - >-
+                    {{ template "alfresco-sync-service.name" $ }}
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - "{{ $.Release.Name }}"
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - "{{ $.Chart.Name }}"
+          topologyKey: kubernetes.io/hostname

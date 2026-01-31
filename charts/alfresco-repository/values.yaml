@@ -1,0 +1,373 @@
+# Default values for alfresco-repository.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+replicaCount: 1
+image:
+  repository: quay.io/alfresco/alfresco-content-repository
+  pullPolicy: IfNotPresent
+  tag: 25.3.0
+  port: 8080
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+# -- How long to wait for tomcat to complete shutdown before killing it
+terminationGracePeriod: 60
+configuration:
+  repository:
+    # -- a configmap containing the "alfresco-global.properties" key populated
+    # with actual Alfresco repository properties see
+    # [details](./docs/repository-properties.md)
+    existingConfigMap: null
+    # -- A list of secrets to make available to the repository as env vars.
+    # This list can contain special secrets marked with predefined `purpose`:
+    # `acs-license` to pass license as a secret or subsystems:*:* to configure
+    # an Alfresco subsystem. See [Configuring Alfresco
+    # Subsystem](./docs/subsystems.md) for more details.
+    existingSecrets:
+      - name: repository-secrets
+        key: license.lic
+        purpose: acs-license
+  db:
+    # -- JDBC url of the database
+    # This is a mandatory parameter
+    url: null
+    # -- JDBC driver class of the driver if none is provided the it is guessed
+    # from the URL provided
+    driver: null
+    # -- Username to authentication to the repository database
+    username: null
+    # -- Password to authentication to the repository database
+    password: null
+    # -- Existing secret and their keys where to find the database username &
+    # password.
+    existingSecret:
+      # -- Name of a pre-existing secret containing database credentials
+      name: null
+      keys:
+        # -- Key within the secret holding the database username
+        username: DATABASE_USERNAME
+        # -- Key within the secret holding the database password
+        password: DATABASE_PASSWORD
+    existingConfigMap:
+      name: null
+      keys:
+        # -- configmap key where to find the URL of the database
+        url: DATABASE_URL
+        # -- configmap key where to find the JDBC driver class to use.
+        # The configmap may leverage the alfresco-repository.db.cm named
+        # template to auto-generate it from the sole url parameter.
+        driver: DATABASE_DRIVER
+  messageBroker:
+    # -- Message Broker URL
+    url: null
+    # -- Username to authenticate to the message broker
+    username: null
+    # -- Password to authenticate to the message broker
+    password: null
+    existingSecret:
+      # -- Name of a pre-existing secret containing message broker credentials
+      name: null
+      keys:
+        # -- Key within the secret holding the message broker username
+        username: BROKER_USERNAME
+        # -- Key within the secret holding the message broker password
+        password: BROKER_PASSWORD
+    existingConfigMap:
+      # -- Name of a pre-existing configmap containing the message broker URL
+      name: null
+      keys:
+        # -- Key within the configmap  holding the message broker URL. It MUST
+        # be a failover URL as per the spec below:
+        # https://activemq.apache.org/failover-transport-reference.html
+        url: BROKER_URL
+  hz:
+    # -- Hazelcast listener port Only change it if you use a custom image where
+    # the port has been changed from default
+    port: 5701
+  search:
+    # -- Can be either `solr`, `elasticsearch` or `noindex`
+    flavor: noindex
+    # -- URL where the search service can be found
+    url: null
+    # -- Username to authenticate to the search service
+    username: null
+    # -- Password to authenticate to the search service
+    password: null
+    # -- Solr inter process shared secret
+    solr-secret: null
+    existingSecret:
+      # -- Optional secret containing search service credentials
+      name: null
+      keys:
+        # -- Key within the secret holding the search service username
+        username: ELASTICSEARCH_USERNAME
+        # -- Key within the secret holding the search service password
+        password: ELASTICSEARCH_PASSWORD
+        # -- Key within the secret holding the index shared secret
+        solr-secret: SOLR_SECRET
+    existingConfigMap:
+      # -- Optional configmap containing the search service URL
+      name: null
+      keys:
+        # -- Key within the configmap  holding the search service URL.
+        url: SEARCH_URL
+        # -- configmap key where to find the search engine used
+        flavor: SEARCH_FLAVOR
+        # -- configmap key where to find the hostname part of the search URL.
+        # The configmap may leverage the alfresco-repository.solr.cm named
+        # template to auto-generate it from the sole url parameter.
+        host: SEARCH_HOST
+        # -- configmap key where to find the port part of the search URL.
+        # The configmap may leverage the alfresco-repository.solr.cm named
+        # template to auto-generate it from the sole url parameter.
+        port: SEARCH_PORT
+        # -- configmap key where to find the search communication security type.
+        # The configmap may leverage the alfresco-repository.solr.cm named
+        # template to auto-generate it from the sole url parameter.
+        securecomms: SEARCH_SECURECOMMS
+        # -- configmap key where to find the root path to Solr.
+        # The configmap may leverage the alfresco-repository.solr.cm named
+        # template to auto-generate it from the sole url parameter.
+        # Not applicable to Elasticsearch
+        solr_base_url: SOLR_BASE_URL
+  # -- Basic SMTP capabilities config (limited to enabling/disabling). In order
+  # to pass more SMTP properties and configure the subsystem more deeply,
+  # please use value `environment.CATALINA_OPTS` or
+  # `configuration.repository.existingConfigMap` and check the [available
+  # properties for this
+  # subsystem](https://github.com/Alfresco/alfresco-community-repo/blob/master/repository/src/main/resources/alfresco/subsystems/email/InboundSMTP/inboundSMTP.properties)
+  # @default -- see below
+  smtp:
+    # -- Enable/Disable Alfresco repository SMTP capabilities
+    enabled: false
+    # -- port to use to listen for SMTP clients
+    port: 1025
+    service:
+      # -- Use annations to get custom behavior of the loadbalancer exposing the service
+      annotations: null
+  # -- Basic IMAP capabilities config (limited to enabling/disabling). In order
+  # to pass more IMAP properties and configure the subsystem more deeply,
+  # please use value `environment.CATALINA_OPTS` or
+  # `configuration.repository.existingConfiMap` and check the [available
+  # properties for this
+  # subsystem](https://support.hyland.com/r/Alfresco/Alfresco-Content-Services/25.2/Alfresco-Content-Services/Configure/Email/Configure-Email-Client-with-IMAP/IMAP-Subsystem-Properties)
+  # @default -- see below
+  imap:
+    # -- Enable/Disable Alfresco repository IMAP capabilities
+    enabled: false
+    # -- port to use to listen for IMAP clients
+    port: 1143
+    # -- Protocol to use to talk to IMAP clients (imap or imaps)
+    protocol: imap
+    service:
+      # -- Use annations to get custom behavior of the loadbalancer exposing the service
+      annotations: null
+environment:
+  # -- Java or Tomcat system properties. These properties must be provided as a
+  # single string following the pattern "-Dproperty=value -Dmoreprop=morevalue".
+  # They override the content of the global properties file but you should
+  # prefer providing configuration.repository.existingConfigMap.
+  CATALINA_OPTS: null
+  # -- Set JVM options
+  JAVA_OPTS: >-
+    -XX:MaxRAMPercentage=80
+persistence:
+  # -- Persist Contentsotre data
+  enabled: false
+  baseSize: 20Gi
+  # -- Specify a storageClass for dynamic provisioning
+  accessModes:
+    - ReadWriteMany
+  # -- Bind PVC based on storageClass (e.g. dynamic provisioning)
+  storageClass: null
+  # -- Use pre-provisioned pv through its claim (e.g. static provisioning)
+  existingClaim: null
+  data:
+    mountPath: /usr/local/tomcat/alf_data
+    subPath: alfresco-content-services/repository-data
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+# -- Additional labels to be added to all resources (deployments, statefulsets, services, pods, etc.)
+# Example:
+#   Product: k8s
+#   Environment: DEV
+additionalLabels: {}
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "alfresco-repo-sa"
+podAnnotations: {}
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 33000
+  runAsGroup: 1000
+  fsGroup: 1000
+securityContext: {}
+service:
+  name: repository
+  type: ClusterIP
+  port: 80
+ingress:
+  # -- Toggle ingress
+  enabled: true
+  annotations:
+    # -- File uploads will timeout after 20 minutes
+    nginx.ingress.kubernetes.io/proxy-read-timeout: 20m
+    # -- File uploads are limited to 5g
+    nginx.ingress.kubernetes.io/proxy-body-size: 5g
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "alfrescoRepo"
+    nginx.ingress.kubernetes.io/session-cookie-hash: "sha1"
+  # -- supported ingress class
+  className: nginx
+  hosts:
+    - paths:
+        - path: /
+          pathType: Prefix
+        - path: /api-explorer
+          pathType: Prefix
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+resources:
+  requests:
+    cpu: "2"
+    memory: "2Gi"
+  limits:
+    cpu: "4"
+    memory: "8Gi"
+startupProbe:
+  periodSeconds: 20
+  failureThreshold: 9
+  timeoutSeconds: 3
+  httpGet:
+    path: /alfresco/api/-default-/public/alfresco/versions/1/probes/-live-
+    port: http
+readinessProbe:
+  periodSeconds: 20
+  timeoutSeconds: 3
+  httpGet:
+    path: /alfresco/api/-default-/public/alfresco/versions/1/probes/-ready-
+    port: http
+livenessProbe:
+  periodSeconds: 20
+  timeoutSeconds: 3
+  httpGet:
+    path: /alfresco/api/-default-/public/alfresco/versions/1/probes/-live-
+    port: http
+autoscaling:
+  # -- Toggle repository autoscaling
+  enabled: false
+  # -- minimum number of replicas to spin up within the replicatset
+  minReplicas: 1
+  # -- maximum number of replicas to spin up within the replicatset
+  maxReplicas: 3
+  behavior:
+    scaleDown:
+      # -- list of available policies for scaling down
+      # scale down either by one pod or by destroying 25% of the pods (whichever is smaller)
+      policies:
+        - periodSeconds: 60
+          type: Pods
+          value: 1
+    scaleUp:
+      # -- list of available policies for scaling up
+      # scale up either by one pod or by adding 50% more pods (whichever is bigger)
+      policies:
+        - periodSeconds: 60
+          type: Percent
+          value: 50
+        - periodSeconds: 60
+          type: Pods
+          value: 2
+      stabilizationWindowSeconds: 30
+  # -- a list of resource the HPA controller should monitor
+  # For more details check
+  # https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-resource-metrics
+  metrics:
+    - resource:
+        name: cpu
+        target:
+          averageUtilization: 75
+          type: Utilization
+      type: Resource
+extraVolumes: []
+extraVolumeMounts: []
+extraSideContainers: []
+extraInitContainers: []
+command: []
+args: []
+nodeSelector: {}
+tolerations: []
+initContainers:
+  waitDbReady:
+    image:
+      repository: busybox
+      tag: "1.37"
+      pullPolicy: IfNotPresent
+    resources:
+      limits:
+        cpu: 250m
+        memory: 20Mi
+global:
+  # -- If a private image registry a secret can be defined and passed to
+  # kubernetes, see:
+  # -- Global additional labels that can be set at parent/umbrella chart level
+  # These will be merged with chart-level additionalLabels, with chart-level taking precedence
+  additionalLabels: {}
+  # https://github.com/Alfresco/acs-deployment/blob/a924ad6670911f64f1bba680682d266dd4ea27fb/docs/helm/eks-deployment.md#docker-registry-secret
+  alfrescoRegistryPullSecrets: quay-registry-secret
+  # -- a fallback for .Values.known_urls that can be shared between charts
+  known_urls: null
+tags:
+  # -- A chart tag used for Hyland's CI purpose. Do not set it to true.
+  ci: false
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      # -- Prefer scheduling pods in different zones
+      - weight: 10
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - >-
+                    {{ template "alfresco-repository.name" $ }}
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - "{{ $.Release.Name }}"
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - "{{ $.Chart.Name }}"
+          topologyKey: topology.kubernetes.io/zone
+      # -- Prefer scheduling pods on different nodes
+      - weight: 5
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - >-
+                    {{ template "alfresco-repository.name" $ }}
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - "{{ $.Release.Name }}"
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - "{{ $.Chart.Name }}"
+          topologyKey: kubernetes.io/hostname

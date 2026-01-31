@@ -1,0 +1,122 @@
+# Defines the deployment for the Alfresco Search (Solr) App
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "alfresco-search-service.deployment.name" . }}
+  labels:
+    {{- include "alfresco-search-service.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "alfresco-search-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "alfresco-search-service.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "alfresco-content-services.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "alfresco-search-service.serviceAccountName" . }}
+      {{- include "alfresco-common.component-pod-security-context" .Values | indent 4 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ template "alfresco-search.dockerImage" . }}
+          imagePullPolicy: {{ template "alfresco-search.pullPolicy" . }}
+          {{- include "alfresco-common.component-security-context" .Values | indent 8 }}
+          env:
+            {{- with .Values.repository }}
+            - name: SOLR_ALFRESCO_SECURECOMMS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .existingSecret.name | default (include "alfresco-search-service.repository-config.name" $) }}
+                  key: {{ .existingSecret.keys.sharedSecret }}
+                  optional: true
+            - name: SOLR_ALFRESCO_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .existingConfigMap.name | default (include "alfresco-search-service.repository-config.name" $) }}
+                  key: {{ .existingConfigMap.keys.host }}
+            - name: SOLR_ALFRESCO_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .existingConfigMap.name | default (include "alfresco-search-service.repository-config.name" $) }}
+                  key: {{ .existingConfigMap.keys.port }}
+            - name: SOLR_ALFRESCO_SECURECOMMS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .existingConfigMap.name | default (include "alfresco-search-service.repository-config.name" $) }}
+                  key: {{ .existingConfigMap.keys.securecomms }}
+            {{- end }}
+            - name: SOLR_SOLR_HOST
+              value: {{ template "alfresco-search-service.deployment.name" . }}
+            - name: SOLR_SOLR_PORT
+              value: {{ include "alfresco-search.svcPort" . | quote }}
+            - name: SOLR_SOLR_BASEURL
+              value: /solr
+            {{- $environment := .Values.environment | default dict }}
+            {{- range $key, $val := $environment }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+          ports:
+            - containerPort: {{ template "alfresco-search.containerPort" . }}
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.search.data.mountPath }}
+              subPath: {{ .Values.persistence.search.data.subPath }}
+            {{- with .Values.volumeMounts }}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  [
+                  $(
+                  curl -sH "X-Alfresco-Search-Secret: $SOLR_ALFRESCO_SECURECOMMS_SECRET" http://localhost:{{ template "alfresco-search.containerPort" . }}/solr/alfresco/admin/ping
+                  | xmllint --xpath '/response/str[@name="status"]/text()' -
+                  )
+                  = "OK" ]
+              {{- toYaml .Values.readinessProbe | nindent 12 }}
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  [
+                  $(
+                  curl -sH "X-Alfresco-Search-Secret: $SOLR_ALFRESCO_SECURECOMMS_SECRET" http://localhost:{{ template "alfresco-search.containerPort" . }}/solr/admin/info/system
+                  | xmllint --xpath '/response/lst/int[@name="status"]/text()' -
+                  )
+                  -eq 0 ]
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+      volumes:
+        {{- include "alfresco-common.data_volume" .Values | nindent 8 }}
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- tpl . $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

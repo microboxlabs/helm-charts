@@ -1,0 +1,118 @@
+---
+suite: test deployment
+templates:
+  - deployment-connector-ms365.yaml
+tests:
+  - it: should have basic metadata in place
+    values: &testvalues
+      - values/test_values.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-alfresco-connector-ms365
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: ms365-sa
+
+  - it: should render cpu and memory limits
+    values: *testvalues
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: "0.25"
+              memory: "1000Mi"
+            limits:
+              cpu: "2"
+              memory: "1000Mi"
+      - contains:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution
+          content:
+            weight: 10
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - alfresco-connector-ms365
+                  - key: app.kubernetes.io/instance
+                    operator: In
+                    values:
+                      - RELEASE-NAME
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                      - alfresco-connector-ms365
+              topologyKey: topology.kubernetes.io/zone
+
+  - it: should leverage provided existing configmap
+    set:
+      repository:
+        existingConfigMap:
+          name: myns/mycm
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].valueFrom.configMapKeyRef.name
+          value: myns/mycm
+
+  - it: should set an environment variable correctly with quotes
+    set:
+      environment:
+        test_data: 80
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[2]
+          value:
+            name: test_data
+            value: "80"
+
+  - it: should set JAVA_OPTS in environment correctly with quotes
+    set:
+      environment:
+        JAVA_OPTS: "-Xmx 2GB"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[2]
+          value:
+            name: JAVA_OPTS
+            value: "-Xmx 2GB -Dalfresco.base-url=http://$(REPO_HOST):$(REPO_PORT)"
+
+  - it: should render labels for deployment
+    values: *testvalues
+    chart:
+      version: 1.0.0
+      appVersion: 2.0.0
+    set:
+      nameOverride: testName
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            app.kubernetes.io/component: alfresco-connector-ms365
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: testName
+            app.kubernetes.io/version: 2.0.0
+            helm.sh/chart: alfresco-connector-ms365-1.0.0
+
+  - it: should render probes
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe
+          value:
+            tcpSocket:
+              port: service-port
+            initialDelaySeconds: 20
+            periodSeconds: 60
+            timeoutSeconds: 10
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe
+          value:
+            tcpSocket:
+              port: service-port
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            failureThreshold: 1
+            timeoutSeconds: 10

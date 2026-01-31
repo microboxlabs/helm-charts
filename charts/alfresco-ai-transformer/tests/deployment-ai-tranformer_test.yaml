@@ -1,0 +1,255 @@
+suite: test ai-transformer deployment
+templates:
+  - deployment-ai-transformer.yaml
+  - config-ai-transformer.yaml
+tests:
+  - it: should have basic deployment properties by default
+    values: &testvalues
+      - values/test_values.yaml
+    template: deployment-ai-transformer.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-aws-comprehend
+                key: AWS_ACCESS_KEY_ID
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-aws-comprehend
+                key: AWS_SECRET_ACCESS_KEY
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FILE_STORE_URL
+            valueFrom:
+              configMapKeyRef:
+                name: RELEASE-NAME-ai-sfs
+                key: FILE_STORE_URL
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_REGION
+            valueFrom:
+              configMapKeyRef:
+                name: RELEASE-NAME-aws-comprehend
+                key: AWS_REGION
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_S3_BUCKET
+            valueFrom:
+              configMapKeyRef:
+                name: RELEASE-NAME-aws-comprehend
+                key: AWS_S3_BUCKET
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_COMPREHEND_ROLE_ARN
+            valueFrom:
+              configMapKeyRef:
+                name: RELEASE-NAME-aws-comprehend
+                key: AWS_COMPREHEND_ROLE_ARN
+      - contains:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution
+          content:
+            weight: 10
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - alfresco-ai-transformer
+                  - key: app.kubernetes.io/instance
+                    operator: In
+                    values:
+                      - RELEASE-NAME
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                      - alfresco-ai-transformer
+              topologyKey: topology.kubernetes.io/zone
+      - contains:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution
+          content:
+            weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - alfresco-ai-transformer
+                  - key: app.kubernetes.io/instance
+                    operator: In
+                    values:
+                      - RELEASE-NAME
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                      - alfresco-ai-transformer
+              topologyKey: kubernetes.io/hostname
+
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: ai-transformer-sa
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-alfresco-ai-transformer
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-alfresco-ai-transformer
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: "0.25"
+              memory: "1000Mi"
+            limits:
+              cpu: "2"
+              memory: "1000Mi"
+
+  - it: should render labels for deployment
+    values: *testvalues
+    set:
+      additionalLabels:
+        my-custom-chart-label: custom-value
+      global:
+        additionalLabels:
+          my-global-custom-label: global-custom-value
+          my-custom-chart-label: global-custom-value
+    chart:
+      version: 1.0.0
+      appVersion: 2.0.0
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            app.kubernetes.io/component: alfresco-ai-transformer
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: alfresco-ai-transformer
+            app.kubernetes.io/version: 2.0.0
+            helm.sh/chart: alfresco-ai-transformer-1.0.0
+            my-custom-chart-label: custom-value
+            my-global-custom-label: global-custom-value
+        template: deployment-ai-transformer.yaml
+
+  - it: should render deployment with existing secrets and configmaps
+    values: *testvalues
+    set:
+      serviceAccount:
+        create: false
+        name: null
+      sfs:
+        existingConfigMap:
+          name: sfsurl
+          keys:
+            url: SFS_URL
+      aws:
+        existingSecret:
+          name: awscreds
+          keys:
+            accessKeyId: AWSACCESSKEYID
+            secretAccessKey: AWSSECRETACCESSKEY
+        existingConfigMap:
+          name: amazon
+          keys:
+            region: REGION
+            s3Bucket: comprehendbucket
+            comprehendRoleARN: ROLE
+      messageBroker:
+        existingConfigMap:
+          name: broker-configmap
+        existingSecret:
+          name: broker-credentials
+    template: deployment-ai-transformer.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: default
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: awscreds
+                key: AWSACCESSKEYID
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: awscreds
+                key: AWSSECRETACCESSKEY
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FILE_STORE_URL
+            valueFrom:
+              configMapKeyRef:
+                name: sfsurl
+                key: SFS_URL
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_REGION
+            valueFrom:
+              configMapKeyRef:
+                name: amazon
+                key: REGION
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_S3_BUCKET
+            valueFrom:
+              configMapKeyRef:
+                name: amazon
+                key: comprehendbucket
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AWS_COMPREHEND_ROLE_ARN
+            valueFrom:
+              configMapKeyRef:
+                name: amazon
+                key: ROLE
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ACTIVEMQ_USER
+            valueFrom:
+              secretKeyRef:
+                name: broker-credentials
+                key: BROKER_USERNAME
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ACTIVEMQ_URL
+            valueFrom:
+              configMapKeyRef:
+                name: broker-configmap
+                key: BROKER_URL
+
+  - it: should render nodeSelector when provided
+    values: *testvalues
+    set:
+      nodeSelector:
+        disktype: ssd
+        environment: production
+    template: deployment-ai-transformer.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            disktype: ssd
+            environment: production

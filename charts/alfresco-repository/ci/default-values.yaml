@@ -1,0 +1,18 @@
+configuration:
+  db:
+    url: postgresql://pg-postgresql-acs:5432/alfresco
+    username: &pguser pguser
+    password: &pgpass pgpass
+  messageBroker:
+    url: failover:(tcp://localhost:61616)
+postgresql:
+  fullnameOverride: pg-postgresql-acs
+  image:
+    repository: bitnamilegacy/postgresql
+    tag: 16.6.0
+  auth:
+    username: *pguser
+    password: *pgpass
+    database: alfresco
+tags:
+  ci: true

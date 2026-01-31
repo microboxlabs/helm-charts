@@ -1,0 +1,237 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "alfresco-repository.fullname" . }}
+  labels:
+    {{- include "alfresco-repository.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{ end }}
+  selector:
+    matchLabels:
+      {{- include "alfresco-repository.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: {{ .Values.strategy.type }}
+    {{- if eq .Values.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      {{- toYaml .Values.strategy.rollingUpdate | nindent 6 }}
+    {{- end }}
+  template:
+    metadata:
+      annotations:
+      {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "alfresco-repository.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "alfresco-repository.serviceAccountName" . }}
+      {{- include "alfresco-common.component-pod-security-context" .Values | indent 4 }}
+      {{- include "alfresco-common.imagePullSecrets" . | indent 6 }}
+      initContainers:
+        - name: wait-db-ready
+          {{- with .Values.initContainers.waitDbReady }}
+          image: {{ printf "%s:%s" .image.repository .image.tag | quote }}
+          imagePullPolicy: {{ .image.pullPolicy }}
+          resources: {{- toYaml .resources | nindent 12 }}
+          {{- end }}
+          {{- include "alfresco-common.component-security-context" .Values | indent 8 }}
+          env:
+            {{ include "alfresco-repository.db.env" . | indent 12 }}
+          command:
+            - sh
+            - -c
+            - |
+              NCTARGET=$(echo "$DATABASE_URL" | awk -F ';|/' '{print $3}')
+              echo -n "Checking database socket: "
+              if [[ "$NCTARGET" == *":"* ]]; then
+                until nc -vw1 $NCTARGET; do
+                  sleep 2
+                done
+              else echo "No port in jdbc URL $DATABASE_URL. Can't guess it so skipping db status check"
+              fi
+        {{- range .Values.extraInitContainers }}
+        {{- list . | toYaml | nindent 8 }}
+        {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          {{- include "alfresco-common.component-security-context" .Values | indent 8 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- $dbsecretCtx := dict }}
+          {{- $dbsecret := "" }}
+          {{- $mqcmCtx := dict }}
+          {{- $mqcm := "" }}
+          {{- $mqsecretCtx := dict }}
+          {{- $mqsecret := "" }}
+          {{- $searchsecretCtx := dict }}
+          {{- $searchsecret := "" }}
+          {{- with .Values.configuration }}
+            {{- $dbsecretCtx = dict "Values" (dict "nameOverride" "secret-database") "Chart" $.Chart "Release" $.Release }}
+            {{- $dbsecret = coalesce .db.existingSecret.name (include "alfresco-repository.fullname" $dbsecretCtx) }}
+            {{- $mqcmCtx = dict "Values" (dict "nameOverride" "alfresco-mq") "Chart" $.Chart "Release" $.Release }}
+            {{- $mqcm = coalesce .messageBroker.existingConfigMap.name (include "alfresco-repository.fullname" $mqcmCtx) }}
+            {{- $mqsecretCtx = dict "Values" (dict "nameOverride" "secret-mq") "Chart" $.Chart "Release" $.Release }}
+            {{- $mqsecret = coalesce .messageBroker.existingSecret.name (include "alfresco-repository.fullname" $mqsecretCtx) }}
+            {{- $searchsecretCtx = dict "Values" (dict "nameOverride" "secret-search") "Chart" $.Chart "Release" $.Release }}
+            {{- $searchsecret = coalesce .search.existingSecret.name (include "alfresco-repository.fullname" $searchsecretCtx) }}
+          {{- end }}
+          env:
+            - name: ENC_METADATA_STOREPASS
+              value: mp6yc0UD9e
+            - name: ENC_METADATA_KEYPASS
+              value: oKIWzVdEdA
+            {{ include "alfresco-repository.db.env" . | indent 12 }}
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $dbsecret }}
+                  key: {{ .Values.configuration.db.existingSecret.keys.password }}
+            - name: DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $dbsecret }}
+                  key: {{ .Values.configuration.db.existingSecret.keys.username }}
+          {{- range .Values.configuration.repository.existingSecrets }}
+            {{- if not (or (eq "acs-license" .purpose) (hasPrefix "subsystems:" (.purpose | default ""))) }}
+              {{- $repoSecretsKeyRef := dict "name" .name "key" .key "optional" true }}
+              {{- $repoSecretsEnv:= dict "name" .key "valueFrom" (dict "secretKeyRef" $repoSecretsKeyRef) }}
+              {{- list $repoSecretsEnv | toYaml | nindent 12 }}
+            {{- end }}
+          {{- end }}
+            {{ include "alfresco-repository.search.env" . | indent 12 }}
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $searchsecret }}
+                  key: {{ .Values.configuration.search.existingSecret.keys.username }}
+                  optional: true
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $searchsecret }}
+                  key: {{ .Values.configuration.search.existingSecret.keys.password }}
+                  optional: true
+            - name: SOLR_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $searchsecret }}
+                  key: {{ index .Values.configuration.search.existingSecret.keys "solr-secret" }}
+                  optional: true
+            - name: BROKER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ $mqcm }}
+                  key: {{ .Values.configuration.messageBroker.existingConfigMap.keys.url }}
+            - name: BROKER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $mqsecret }}
+                  key: {{ .Values.configuration.messageBroker.existingSecret.keys.username }}
+                  optional: true
+            - name: BROKER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $mqsecret }}
+                  key: {{ .Values.configuration.messageBroker.existingSecret.keys.password }}
+                  optional: true
+          {{- $optsCtx := dict "Values" (dict "nameOverride" "alfresco-opts") "Chart" .Chart "Release" .Release }}
+          envFrom:
+            - configMapRef:
+                name: {{ template "alfresco-repository.fullname" $optsCtx }}
+          {{- if .Values.command }}
+          command:
+            {{- toYaml .Values.command | nindent 12 }}
+          args:
+            {{- toYaml .Values.args | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.image.port }}
+              protocol: TCP
+            - name: hazelcast
+              containerPort: {{ .Values.configuration.hz.port }}
+              protocol: TCP
+            {{- if .Values.configuration.imap.enabled }}
+            - name: {{ .Values.configuration.imap.protocol }}
+              containerPort: {{ .Values.configuration.imap.port }}
+              protocol: TCP
+            {{- end }}
+            {{- if .Values.configuration.smtp.enabled }}
+            - name: smtp
+              containerPort: {{ .Values.configuration.smtp.port }}
+              protocol: TCP
+            {{- end }}
+          startupProbe:
+            {{- toYaml .Values.startupProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.data.mountPath }}
+              subPath: {{ .Values.persistence.data.subPath }}
+            {{- if .Values.configuration.repository.existingConfigMap }}
+            - name: global-properties
+              mountPath: /usr/local/tomcat/shared/classes/alfresco-global.properties
+              subPath: alfresco-global.properties
+              readOnly: true
+            {{- end }}
+            {{- range .Values.configuration.repository.existingSecrets }}
+             {{- if eq "acs-license" .purpose }}
+            - name: acs-license
+              mountPath: /usr/local/tomcat/shared/classes/alfresco/extension/license
+              readOnly: true
+             {{- else if and (hasPrefix "subsystems:" (.purpose | default "")) (eq (splitList ":" (.purpose | default "") | len) 3) }}
+            - name: {{ .name }}
+              mountPath: /usr/local/tomcat/shared/classes/alfresco/extension/{{ splitList ":" (.purpose | default "") | join "/" }}/{{ .name }}
+              readOnly: true
+              {{- end }}
+            {{- end }}
+            {{- if .Values.extraVolumeMounts }}
+            {{- tpl (.Values.extraVolumeMounts | toYaml) . | nindent 12 }}
+            {{- end }}
+        {{- range .Values.extraSideContainers }}
+          {{ tpl (toYaml (list .)) $ | nindent 8 }}
+        {{- end }}
+      volumes:
+        {{- include "alfresco-common.data_volume" .Values | nindent 8 }}
+        {{- if .Values.configuration.repository.existingConfigMap }}
+        - name: global-properties
+          configMap:
+            name: {{ .Values.configuration.repository.existingConfigMap }}
+            defaultMode: 0400
+            items:
+              - key: alfresco-global.properties
+                path: alfresco-global.properties
+        {{- end }}
+        {{- range .Values.configuration.repository.existingSecrets }}
+          {{- if eq "acs-license" .purpose }}
+            {{- $licitems := list (dict "key" .key "path" "license.lic") }}
+            {{- $licvol := dict "name" "acs-license" "secret" (dict "secretName" .name "defaultMode" 0400 "optional" true "items" $licitems) }}
+            {{- list $licvol | toYaml | nindent 8 }}
+          {{- else if and (hasPrefix "subsystems:" (.purpose | default "")) (eq (splitList ":" (.purpose | default "") | len) 3) }}
+            {{- $subsysvol := dict "name" .name "secret" (dict "secretName" .name "defaultMode" 0400) }}
+            {{- list $subsysvol | toYaml | nindent 8 }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.extraVolumes }}
+        {{- tpl (.Values.extraVolumes | toYaml) . | nindent 8 }}
+        {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriod }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

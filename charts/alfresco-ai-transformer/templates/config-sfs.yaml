@@ -1,0 +1,11 @@
+{{- if not .Values.sfs.existingConfigMap.name }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "alfresco-ai-transformer.config-ai-sfs.name" . }}
+  labels:
+    {{- include "alfresco-ai-transformer.labels" . | nindent 4 }}
+data:
+  {{- $reqmsg := "You must provide a base URL for the filestore service as sfs.url" }}
+  FILE_STORE_URL: {{ template "alfresco-common.sfs.fullurl" (required $reqmsg .Values.sfs.url) }}
+{{- end }}

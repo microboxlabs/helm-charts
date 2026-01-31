@@ -1,0 +1,49 @@
+---
+suite: test deployment
+templates:
+  - configmap-repository.yaml
+tests:
+  - it: should NOT render the repository confgimap
+    set:
+      repository:
+        existingConfigMap:
+          name: mycm
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: should fail render the repository confgimap
+    asserts:
+      - failedTemplate:
+          errorMessage: >-
+            You must provide repository details throught values or using an existing configmap
+  - it: should render options based on repo values
+    set:
+      repository:
+        host: acs-alfresco-repository
+        port: 80
+    asserts:
+      - equal:
+          path: data.REPO_HOST
+          value: acs-alfresco-repository
+      - equal:
+          path: data.REPO_PORT
+          value: "80"
+  - it: should render labels for config and secret
+    set:
+      nameOverride: testName
+      repository:
+        host: acs-alfresco-repository
+        port: 80
+    chart:
+      version: 1.0.0
+      appVersion: 2.0.0
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            app.kubernetes.io/component: alfresco-sync-service
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: testName
+            app.kubernetes.io/version: 2.0.0
+            helm.sh/chart: alfresco-sync-service-1.0.0

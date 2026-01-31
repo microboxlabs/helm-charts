@@ -1,0 +1,122 @@
+---
+global:
+  alfrescoRegistryPullSecrets: quay-registry-secret
+  # -- Global additional labels that can be set at parent/umbrella chart level
+  # These will be merged with chart-level additionalLabels, with chart-level taking precedence
+  additionalLabels: {}
+# -- Additional labels to be added to all resources (deployments, statefulsets, services, pods, etc.)
+# Example:
+#   Product: k8s
+#   Environment: DEV
+additionalLabels: {}
+strategy:
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+replicaCount: 2
+nodeSelector: {}
+tolerations: []
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      # -- Prefer to schedule pods in different zones
+      - weight: 10
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - >-
+                    {{ template "alfresco-connector-ms365.name" $ }}
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - "{{ .Release.Name }}"
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - "{{ $.Chart.Name }}"
+          topologyKey: topology.kubernetes.io/zone
+      # -- Prefer to schedule pods in different nodes
+      - weight: 5
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - >-
+                    {{ template "alfresco-connector-ms365.name" $ }}
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - "{{ .Release.Name }}"
+          topologyKey: kubernetes.io/hostname
+podAnnotations: {}
+podLabels: {}
+image:
+  repository: quay.io/alfresco/alfresco-ooi-service
+  tag: 2.0.8
+  pullPolicy: IfNotPresent
+  internalPort: 9095
+service:
+  name: ms365-service
+  type: ClusterIP
+  externalPort: 80
+ingress:
+  # -- Enable or disable ingress resource creation
+  enabled: true
+  className: nginx
+  hosts:
+    - paths:
+        - path: /ooi-service
+          pathType: Prefix
+  tls: []
+  annotations: {}
+  extraAnnotations: {}
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 33006
+resources:
+  requests:
+    cpu: "0.25"
+    memory: "1000Mi"
+  limits:
+    cpu: "2"
+    memory: "1000Mi"
+environment: {}
+readinessProbe:
+  tcpSocket:
+    port: service-port
+  initialDelaySeconds: 20
+  periodSeconds: 60
+  timeoutSeconds: 10
+livenessProbe:
+  tcpSocket:
+    port: service-port
+  initialDelaySeconds: 10
+  periodSeconds: 20
+  failureThreshold: 1
+  timeoutSeconds: 10
+repository:
+  # -- ACS repository host
+  host: acs-alfresco-cs-repository
+  # -- ACS repository port
+  port: 80
+  existingConfigMap:
+    # -- a pre-existing configmap which provides expected configuration for ms365
+    name: null
+    keys:
+      # -- name of the key in the configMap where to find the repository service host
+      host: REPO_HOST
+      # -- name of the key in the configMap where to find the repository service port
+      port: REPO_PORT
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  create: true
+  # -- Annotations to add to the service account
+  annotations: {}
+  # -- The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ms365-sa

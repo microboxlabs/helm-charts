@@ -1,0 +1,14 @@
+{{- if not .Values.repository.existingConfigMap.name }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "alfresco-search-service.repository-config.name" . }}
+  labels:
+    {{- include "alfresco-search-service.labels" . | nindent 4 }}
+data:
+  {{- with .Values.repository }}
+  {{ .existingConfigMap.keys.host }}: {{ .host | quote }}
+  {{ .existingConfigMap.keys.port }}: {{ .port | quote }}
+  {{ .existingConfigMap.keys.securecomms }}: {{ .securecomms | quote }}
+  {{- end }}
+{{- end }}

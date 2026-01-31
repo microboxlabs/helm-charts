@@ -1,0 +1,11 @@
+# Helm chart automated files
+*.tgz
+.idea
+.DS_Store
+
+# Github workflows related
+merged.yaml
+alfresco-updatecli
+charts/*/render
+
+_site

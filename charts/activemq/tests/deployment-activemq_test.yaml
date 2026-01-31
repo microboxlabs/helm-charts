@@ -1,0 +1,74 @@
+---
+suite: test activemq deployment
+templates:
+  - deployment-activemq.yaml
+tests:
+  - it: should reference default secret containing broker default credentials
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[3].name
+          value: ACTIVEMQ_ADMIN_LOGIN
+      - equal:
+          path: spec.template.spec.containers[0].env[3].valueFrom.secretKeyRef.name
+          value: RELEASE-NAME-activemq-brokersecret
+
+  - it: should reference overridden secret when setting existingSecretName
+    set:
+      adminUser.existingSecretName: existing-secret
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[3].valueFrom.secretKeyRef.name
+          value: existing-secret
+
+  - it: should render cpu and memory limits
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: "0.25"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "2048Mi"
+
+  - it: should render default image pull secrets
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: quay-registry-secret
+
+  - it: should render custom image pull secrets
+    set:
+      global.alfrescoRegistryPullSecrets: regcred
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: regcred
+
+  - it: should render labels
+    chart:
+      version: 1.0.0
+      appVersion: 2.0.0
+    set:
+      nameOverride: testComponent
+      additionalLabels:
+        my-custom-chart-label: custom-value
+      global:
+        additionalLabels:
+          my-global-custom-label: global-custom-value
+          my-custom-chart-label: global-custom-value
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            app.kubernetes.io/component: activemq
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: testComponent
+            app.kubernetes.io/version: 2.0.0
+            helm.sh/chart: activemq-1.0.0
+            my-custom-chart-label: custom-value
+            my-global-custom-label: global-custom-value

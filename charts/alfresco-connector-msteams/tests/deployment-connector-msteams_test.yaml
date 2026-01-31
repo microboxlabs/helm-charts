@@ -1,0 +1,176 @@
+suite: test connector-msteams deployment
+templates:
+- deployment-connector-msteams.yaml
+- config-connector-msteams.yaml
+tests:
+- it: should have basic deployment properties by default
+  values: &testvalues
+    - values/test_values.yaml
+  template: deployment-connector-msteams.yaml
+  asserts:
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: ALFRESCO_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: RELEASE-NAME-repo-teams
+              key: ALFRESCO_BASE_URL
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: MICROSOFT_APP_ID
+          valueFrom:
+            secretKeyRef:
+              name: RELEASE-NAME-msteams-se
+              key: MICROSOFT_APP_ID
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: MICROSOFT_APP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: RELEASE-NAME-msteams-se
+              key: MICROSOFT_APP_PASSWORD
+    - equal:
+        path: spec.template.spec.serviceAccountName
+        value: msteams-sa
+    - equal:
+        path: metadata.name
+        value: RELEASE-NAME-alfresco-connector-msteams
+    - equal:
+        path: spec.template.spec.containers[0].resources
+        value:
+          requests:
+            cpu: "0.5"
+            memory: "1000Mi"
+          limits:
+            cpu: "1"
+            memory: "1000Mi"
+    - contains:
+        path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution
+        content:
+          weight: 10
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - alfresco-connector-msteams
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - RELEASE-NAME
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - alfresco-connector-msteams
+            topologyKey: topology.kubernetes.io/zone
+    - contains:
+        path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution
+        content:
+          weight: 5
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - alfresco-connector-msteams
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - RELEASE-NAME
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - alfresco-connector-msteams
+            topologyKey: kubernetes.io/hostname
+- it: should render deployment with existing secrets and configmaps
+  values: *testvalues
+  set:
+    serviceAccount:
+      create: false
+      name: null
+    repository:
+      existingConfigMap:
+        name: baseurl
+        keys:
+          url: BASE_URL
+    microsoft:
+      app:
+        existingSecret:
+          name: msteamscreds
+          keys:
+            id: ABC
+            password: XYZ
+  template: deployment-connector-msteams.yaml
+  asserts:
+    - equal:
+        path: spec.template.spec.serviceAccountName
+        value: default
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: ALFRESCO_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: baseurl
+              key: BASE_URL
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: MICROSOFT_APP_ID
+          valueFrom:
+            secretKeyRef:
+              name: msteamscreds
+              key: ABC
+    - contains:
+        path: spec.template.spec.containers[0].env
+        content:
+          name: MICROSOFT_APP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: msteamscreds
+              key: XYZ
+
+- it: should render labels for deployment
+  values: *testvalues
+  chart:
+    version: 1.0.0
+    appVersion: 2.0.0
+  set:
+    nameOverride: testName
+  asserts:
+    - isSubset:
+        path: metadata.labels
+        content:
+          app.kubernetes.io/component: alfresco-connector-msteams
+          app.kubernetes.io/instance: RELEASE-NAME
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/name: testName
+          app.kubernetes.io/version: 2.0.0
+          helm.sh/chart: alfresco-connector-msteams-1.0.0
+  template: deployment-connector-msteams.yaml
+
+- it: should render probes
+  asserts:
+    - equal:
+        path: spec.template.spec.containers[0].readinessProbe
+        value:
+          tcpSocket:
+            port: service-port
+          initialDelaySeconds: 20
+          periodSeconds: 60
+          timeoutSeconds: 10
+    - equal:
+        path: spec.template.spec.containers[0].livenessProbe
+        value:
+          tcpSocket:
+            port: service-port
+          initialDelaySeconds: 10
+          periodSeconds: 20
+          failureThreshold: 1
+          timeoutSeconds: 10
+  template: deployment-connector-msteams.yaml

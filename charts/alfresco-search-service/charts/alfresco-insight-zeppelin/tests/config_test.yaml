@@ -1,0 +1,31 @@
+---
+suite: test zeppelin configmap
+templates:
+  - config.yaml
+values:
+  - values/test_values.yaml
+tests:
+  - it: should have default port and hosts
+    asserts:
+      - equal:
+          path: data.REPO_HOST
+          value: alfresco-search-service
+        template: config.yaml
+      - equal:
+          path: data.REPO_PORT
+          value: "80"
+        template: config.yaml
+
+  - it: should have provided host and port
+    set:
+      repository:
+        url: https://somacshost:888
+    asserts:
+      - equal:
+          path: data.REPO_HOST
+          value: somacshost
+        template: config.yaml
+      - equal:
+          path: data.REPO_PORT
+          value: "888"
+        template: config.yaml

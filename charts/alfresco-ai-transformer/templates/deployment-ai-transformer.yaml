@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "alfresco-ai-transformer.fullname" . }}
+  labels:
+    {{- include "alfresco-ai-transformer.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "alfresco-ai-transformer.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      {{- toYaml .Values.strategy.rollingUpdate | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "alfresco-ai-transformer.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "alfresco-ai-transformer.serviceAccountName" . }}
+      {{- include "alfresco-common.component-pod-security-context" .Values | indent 4 }}
+      {{- include "alfresco-common.imagePullSecrets" . | indent 6 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "alfresco-common.component-security-context" .Values | indent 8 }}
+          envFrom:
+          - configMapRef:
+              name: {{ template "alfresco-ai-transformer.fullname" . }}
+          env:
+            {{- $mqSecret := coalesce .Values.messageBroker.existingSecret.name (include "alfresco-ai-transformer.secret-ai-mq.name" .) }}
+            - name: ACTIVEMQ_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $mqSecret }}
+                  key: {{ .Values.messageBroker.existingSecret.keys.username }}
+            - name: ACTIVEMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $mqSecret }}
+                  key: {{ .Values.messageBroker.existingSecret.keys.password }}
+            - name: ACTIVEMQ_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ coalesce .Values.messageBroker.existingConfigMap.name (include "alfresco-ai-transformer.config-ai-mq.name" .) }}
+                  key: {{ .Values.messageBroker.existingConfigMap.keys.url }}
+            - name: FILE_STORE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ coalesce .Values.sfs.existingConfigMap.name (include "alfresco-ai-transformer.config-ai-sfs.name" .) }}
+                  key: {{ .Values.sfs.existingConfigMap.keys.url }}
+            {{- $awsSecret := coalesce .Values.aws.existingSecret.name (include "alfresco-ai-transformer.secret-ai-aws.name" .) }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $awsSecret }}
+                  key: {{ .Values.aws.existingSecret.keys.accessKeyId }}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $awsSecret }}
+                  key: {{ .Values.aws.existingSecret.keys.secretAccessKey }}
+            {{- $awsCm := coalesce .Values.aws.existingConfigMap.name (include "alfresco-ai-transformer.config-ai-aws.name" .) }}
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ $awsCm }}
+                  key: {{ .Values.aws.existingConfigMap.keys.region }}
+            - name: AWS_S3_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ $awsCm }}
+                  key: {{ .Values.aws.existingConfigMap.keys.s3Bucket }}
+            - name: AWS_COMPREHEND_ROLE_ARN
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ $awsCm }}
+                  key: {{ .Values.aws.existingConfigMap.keys.comprehendRoleARN }}
+
+          ports:
+            - name: service-port
+              containerPort: {{ .Values.image.internalPort }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- toYaml .Values.extraVolumeMounts | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          {{- if .Values.command }}
+          command:
+            {{- toYaml .Values.command | nindent 12 }}
+          {{- end }}
+          {{- if .Values.args }}
+          args:
+            {{- toYaml .Values.args | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      initContainers:
+        {{- toYaml .Values.extraInitContainers | nindent 8 }}
+      volumes:
+        {{- toYaml .Values.extraVolumes | nindent 8 }}

@@ -1,0 +1,360 @@
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+# -- Additional labels to be added to all resources (deployments, statefulsets, services, pods, etc.)
+# Example:
+#   Product: k8s
+#   Environment: DEV
+additionalLabels: {}
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+nodeSelector: {}
+tolerations: []
+resources:
+  requests:
+    cpu: "0.5"
+    memory: "256Mi"
+  limits:
+    cpu: "2"
+    memory: "2048Mi"
+# -- Name of the existing search index, usually created by repo
+indexName: alfresco
+pathIndexingComponent:
+  enabled: true
+contentMediaTypeCache:
+  enabled: true
+  refreshTime: 0 0 * * * *
+liveIndexing:
+  # -- Set environment variables for all the live indexing components (mediation, content, metadata, path)
+  environment: {}
+  mediation:
+    image:
+      repository: >-
+        quay.io/alfresco/alfresco-elasticsearch-live-indexing-mediation
+      tag: 5.3.0
+      pullPolicy: IfNotPresent
+    # -- Set environment variables for the mediation component
+    environment: {}
+  content:
+    image:
+      repository: quay.io/alfresco/alfresco-elasticsearch-live-indexing-content
+      tag: 5.3.0
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    # -- Set environment variables for the content component
+    environment: {}
+    livenessProbe:
+      initialDelaySeconds: 300
+      timeoutSeconds: 60
+      httpGet:
+        path: /actuator/health
+        port: http
+    readinessProbe:
+      initialDelaySeconds: 60
+      timeoutSeconds: 60
+      httpGet:
+        path: /actuator/health
+        port: http
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          # -- Prefer to schedule the content pod on a different zone
+          - weight: 10
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - >-
+                        {{ template "alfresco-search-enterprise.content.name" $ }}
+                  - key: app.kubernetes.io/instance
+                    operator: In
+                    values:
+                      - "{{ $.Release.Name }}"
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                      - "{{ $.Chart.Name }}"
+              topologyKey: topology.kubernetes.io/zone
+          # -- Prefer to schedule the content pod on a different node
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - >-
+                        {{ template "alfresco-search-enterprise.content.name" $ }}
+                  - key: app.kubernetes.io/instance
+                    operator: In
+                    values:
+                      - "{{ $.Release.Name }}"
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                      - "{{ $.Chart.Name }}"
+              topologyKey: kubernetes.io/hostname
+  metadata:
+    image:
+      repository: quay.io/alfresco/alfresco-elasticsearch-live-indexing-metadata
+      tag: 5.3.0
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    # -- Set environment variables for the metadata component
+    environment: {}
+    livenessProbe:
+      initialDelaySeconds: 300
+      timeoutSeconds: 60
+      httpGet:
+        path: /actuator/health
+        port: http
+    readinessProbe:
+      initialDelaySeconds: 60
+      timeoutSeconds: 60
+      httpGet:
+        path: /actuator/health
+        port: http
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          # -- Prefer to schedule the content pod on a different zone
+          - weight: 10
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - >-
+                        {{ template "alfresco-search-enterprise.metadata.name" $ }}
+                  - key: app.kubernetes.io/instance
+                    operator: In
+                    values:
+                      - "{{ $.Release.Name }}"
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                      - "{{ $.Chart.Name }}"
+              topologyKey: topology.kubernetes.io/zone
+          # -- Prefer to schedule the content pod on a different node
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - >-
+                        {{ template "alfresco-search-enterprise.metadata.name" $ }}
+                  - key: app.kubernetes.io/instance
+                    operator: In
+                    values:
+                      - "{{ $.Release.Name }}"
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                      - "{{ $.Chart.Name }}"
+              topologyKey: kubernetes.io/hostname
+  path:
+    image:
+      repository: quay.io/alfresco/alfresco-elasticsearch-live-indexing-path
+      tag: 5.3.0
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    # -- Set environment variables for the path component
+    environment: {}
+    livenessProbe:
+      initialDelaySeconds: 300
+      timeoutSeconds: 60
+      httpGet:
+        path: /actuator/health
+        port: http
+    readinessProbe:
+      initialDelaySeconds: 60
+      timeoutSeconds: 60
+      httpGet:
+        path: /actuator/health
+        port: http
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          # -- Prefer to schedule the content pod on a different zone
+          - weight: 10
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - >-
+                        {{ template "alfresco-search-enterprise.path.name" $ }}
+                  - key: app.kubernetes.io/instance
+                    operator: In
+                    values:
+                      - "{{ $.Release.Name }}"
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                      - "{{ $.Chart.Name }}"
+              topologyKey: topology.kubernetes.io/zone
+          # -- Prefer to schedule the content pod on a different node
+          - weight: 5
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - >-
+                        {{ template "alfresco-search-enterprise.path.name" $ }}
+                  - key: app.kubernetes.io/instance
+                    operator: In
+                    values:
+                      - "{{ $.Release.Name }}"
+                  - key: app.kubernetes.io/component
+                    operator: In
+                    values:
+                      - "{{ $.Chart.Name }}"
+              topologyKey: kubernetes.io/hostname
+reindexing:
+  # -- Create the one-shot job to trigger the reindexing of repo contents
+  enabled: true
+  image:
+    repository: quay.io/alfresco/alfresco-elasticsearch-reindexing
+    tag: 5.3.0
+    pullPolicy: IfNotPresent
+  pathIndexingEnabled: true
+  environment: {}
+  # -- When to execute the reindexing job (e.g. `post-install` or `post-upgrade`
+  # or set to false to apply as a standard resource)
+  hookExecution: post-install
+  # -- Time to live for the job after it has finished to run
+  ttlSecondsAfterFinished: 3600
+  repository:
+    # -- URL of the Alfresco repository
+    url: null
+    existingConfigMap:
+      # -- Alternatively, provide repository connection details via an existing
+      # configmap
+      name: null
+      keys:
+        # -- Key within the configmap holding the full url to connect to the
+        # alfresco repository
+        url: REPOSITORY_URL
+  db:
+    # -- Provide the full JDBC url to connect to database service e.g.:
+    # `jdbc:postgresql://hostname:5432/database`
+    url: null
+    # -- The username required to access the service
+    username: null
+    # -- The password required to access the service
+    password: null
+    existingSecret:
+      # -- Alternatively, provide database credentials via an existing secret
+      name: null
+      keys:
+        # -- Key within the secret holding the database username
+        username: DATABASE_USERNAME
+        # -- Key within the secret holding the database password
+        password: DATABASE_PASSWORD
+    existingConfigMap:
+      # -- Alternatively, provide database connection details via an existing
+      # configmap
+      name: null
+      keys:
+        # -- Key within the configmap holding the full JDBC url to connect to
+        # database service
+        url: DATABASE_URL
+  resources:
+    requests:
+      cpu: "0.5"
+      memory: "128Mi"
+    limits:
+      cpu: "2"
+      memory: "512Mi"
+  initcontainers:
+    waitForRepository:
+      image:
+        repository: curlimages/curl
+        tag: "8.11.0"
+        pullPolicy: IfNotPresent
+      resources:
+        limits:
+          cpu: 250m
+          memory: 20Mi
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "alfresco-search-enterprise-sa"
+ats:
+  # -- URL of the alfresco transform (trouter or tengine-aio)
+  transform_url: null
+  # -- URL of the alfresco shared filestore
+  sfs_url: null
+  existingConfigMap:
+    # -- Alternatively, provide ATS details via an existing configmap
+    name: null
+    keys:
+      # -- Key within the configmap holding the URL of the alfresco transform
+      transform_url: ATS_URL
+      # -- Key within the configmap holding the URL of the alfresco shared filestore
+      sfs_url: SFS_URL
+messageBroker:
+  # --  Broker URL formatted as per:
+  # https://activemq.apache.org/failover-transport-reference
+  url: null
+  # -- Broker username
+  username: null
+  # -- Broker password
+  password: null
+  existingConfigMap:
+    # -- Alternatively, provide message broker connection details via an existing
+    # configmap
+    name: null
+    keys:
+      # -- Key within the configmap holding the URL of the message broker
+      url: BROKER_URL
+  # -- Provide connection details alternatively via an existing secret that
+  # contains BROKER_URL, BROKER_USERNAME and BROKER_PASSWORD keys
+  existingSecret:
+    name: null
+    keys:
+      username: BROKER_USERNAME
+      password: BROKER_PASSWORD
+search:
+  # -- The URL where the search/indexing service is available
+  url: null
+  # -- The username required to access the search/indexing service, if any
+  username: null
+  # -- The password required to access the search/indexing service, if any
+  password: null
+  existingConfigMap:
+    # -- Alternatively, provide search/indexing service connection details via
+    # an existing configmap
+    name: null
+    keys:
+      # -- Key within the configmap holding the URL of the search/indexing service
+      url: SEARCH_URL
+  existingSecret:
+    # -- Alternatively, provide search/indexing credentials via an existing secret
+    name: null
+    keys:
+      # -- Key within the secret that holds the search/indexing username
+      username: SEARCH_USERNAME
+      # -- Key within the secret that holds the search/indexing password
+      password: SEARCH_PASSWORD
+global:
+  alfrescoRegistryPullSecrets: quay-registry-secret
+  # -- Global additional labels that can be set at parent/umbrella chart level
+  # These will be merged with chart-level additionalLabels, with chart-level taking precedence
+  additionalLabels: {}
+tags:
+  # -- A chart tag used for Hyland's CI purpose. Do not set it to true.
+  ci: false
