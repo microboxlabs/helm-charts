@@ -1,0 +1,20 @@
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Helm
+*.tgz
+charts/**/charts/*.tgz
+
+# Misc
+*.log
+.cache/
