@@ -2,10 +2,53 @@ name: Release Helm Charts
 
 run-name: ${{ github.actor }} is releasing MBL Helm Charts 🚀
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - trunk
+  pull_request:
+    branches:
+      - trunk
 
 jobs:
-  Release-Helm-Charts:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Add dependency repos
+        run: |
+          helm repo add bitnami https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami/
+
+      - name: Lint custom charts
+        run: |
+          for chart in charts/*/Chart.yaml; do
+            chart_dir=$(dirname "$chart")
+            # Skip alfresco subtree directory (it's not a chart itself)
+            if [[ "$chart_dir" != "charts/alfresco" ]]; then
+              echo "Linting $chart_dir"
+              helm lint "$chart_dir"
+            fi
+          done
+
+      - name: Lint Alfresco charts
+        run: |
+          for chart in charts/alfresco/charts/*/Chart.yaml; do
+            chart_dir=$(dirname "$chart")
+            echo "Linting $chart_dir"
+            helm dependency build "$chart_dir" 2>/dev/null || true
+            helm lint "$chart_dir" || true  # Don't fail on Alfresco lint issues
+          done
+
+  release:
+    needs: lint
+    if: github.event_name == 'push' && github.ref == 'refs/heads/trunk'
     permissions:
       contents: write
 
@@ -22,7 +65,26 @@ jobs:
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
-      - name: Run chart-releaser
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Add dependency repos
+        run: |
+          helm repo add bitnami https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami/
+          helm repo add self https://microboxlabs.github.io/helm-charts/
+
+      - name: Release custom charts
         uses: helm/chart-releaser-action@v1.6.0
+        with:
+          charts_dir: charts
+          skip_existing: true
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Release Alfresco charts
+        uses: helm/chart-releaser-action@v1.6.0
+        with:
+          charts_dir: charts/alfresco/charts
+          skip_existing: true
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
