@@ -1,0 +1,75 @@
+name: Sync Alfresco Upstream
+
+on:
+  schedule:
+    # Run weekly on Monday at 9am UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add alfresco-upstream https://github.com/Alfresco/alfresco-helm-charts.git
+
+      - name: Fetch upstream
+        run: git fetch alfresco-upstream main
+
+      - name: Check for changes
+        id: check
+        run: |
+          # Get new commits from upstream that aren't in our repo
+          git log --oneline alfresco-upstream/main --not HEAD -- > /tmp/new_commits.txt 2>/dev/null || true
+          
+          if [ -s /tmp/new_commits.txt ]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            echo "New commits found:"
+            head -20 /tmp/new_commits.txt
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "No new commits from upstream"
+          fi
+
+      - name: Create sync branch and PR
+        if: steps.check.outputs.has_updates == 'true'
+        run: |
+          BRANCH="sync/alfresco-upstream-$(date +%Y%m%d)"
+          git checkout -b "$BRANCH"
+          
+          # Attempt subtree pull
+          if git subtree pull --prefix=charts/alfresco alfresco-upstream main --squash -m "chore: sync alfresco-helm-charts upstream"; then
+            git push origin "$BRANCH"
+            
+            # Create PR
+            gh pr create \
+              --title "chore: Sync Alfresco Helm Charts upstream" \
+              --body "$(cat <<EOF
+Automated sync from [alfresco-helm-charts](https://github.com/Alfresco/alfresco-helm-charts)
+
+## Recent changes from upstream (up to 20 commits)
+\`\`\`
+$(head -20 /tmp/new_commits.txt)
+\`\`\`
+
+Please review the changes and merge when ready.
+EOF
+)" \
+              --base trunk \
+              --head "$BRANCH"
+          else
+            echo "::error::Subtree pull failed - may have conflicts. Manual intervention required."
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
