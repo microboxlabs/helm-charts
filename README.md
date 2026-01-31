@@ -138,5 +138,8 @@ This project follows [Conventional Commits](https://www.conventionalcommits.org/
 
 ## License
 
-- Custom charts: MIT License
-- Alfresco charts: See [Alfresco License](https://github.com/Alfresco/alfresco-helm-charts/blob/main/LICENSE)
+This project is licensed under the [Apache License 2.0](LICENSE).
+
+The Alfresco Helm Charts included in this repository (`charts/alfresco/`) are
+Copyright © Alfresco Software, Ltd. and are also distributed under the
+Apache License 2.0.
