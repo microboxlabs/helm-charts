@@ -1,0 +1,169 @@
+# Alfresco Repository
+
+The `alfresco-repository` chart deploys the Alfresco Content Repository - the core content management component of the Alfresco Content Services platform.
+
+## Installation
+
+```bash
+helm install alfresco-repo mbl-charts/alfresco-repository -f values.yaml
+```
+
+## Requirements
+
+| Repository | Name | Version |
+|------------|------|---------|
+| https://microboxlabs.github.io/helm-charts/ | alfresco-common | 4.0.0 |
+| oci://registry-1.docker.io/bitnamicharts | postgresql | 12.5.6 |
+
+## Key Configuration
+
+### Database Configuration
+
+The repository requires a PostgreSQL database. You can either:
+
+1. **Use the bundled PostgreSQL** (for development):
+
+```yaml
+postgresql:
+  enabled: true
+  auth:
+    database: alfresco
+    username: alfresco
+    password: alfresco
+```
+
+2. **Use an external database** (recommended for production):
+
+```yaml
+configuration:
+  db:
+    url: jdbc:postgresql://your-db-host:5432/alfresco
+    username: alfresco
+    password: your-password
+```
+
+Or using Kubernetes secrets:
+
+```yaml
+configuration:
+  db:
+    existingConfigMap:
+      name: my-db-config
+    existingSecret:
+      name: my-db-credentials
+```
+
+### Message Broker
+
+For async operations, configure ActiveMQ:
+
+```yaml
+configuration:
+  messageBroker:
+    url: failover:(nio://activemq:61616)?timeout=3000
+    username: admin
+    password: admin
+```
+
+### Search Configuration
+
+Configure the search backend (Elasticsearch or Solr):
+
+```yaml
+configuration:
+  search:
+    flavor: elasticsearch  # or 'solr' or 'noindex'
+    url: http://elasticsearch:9200
+    username: elastic
+    password: your-password
+```
+
+### Persistence
+
+For production, enable persistent storage:
+
+```yaml
+persistence:
+  enabled: true
+  storageClass: your-storage-class
+  baseSize: 100Gi
+```
+
+### Autoscaling
+
+Enable horizontal pod autoscaling:
+
+```yaml
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+```
+
+## Common Values
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `replicaCount` | int | `1` | Number of repository pods |
+| `image.repository` | string | `quay.io/alfresco/alfresco-content-repository` | Container image |
+| `image.tag` | string | `25.3.0` | Image version |
+| `resources.requests.memory` | string | `2Gi` | Memory request |
+| `resources.limits.memory` | string | `8Gi` | Memory limit |
+| `ingress.enabled` | bool | `true` | Enable ingress |
+| `persistence.enabled` | bool | `false` | Enable persistent storage |
+
+## Example: Minimal Production Setup
+
+```yaml
+replicaCount: 2
+
+image:
+  tag: "25.3.0"
+
+configuration:
+  db:
+    url: jdbc:postgresql://postgres.database.svc:5432/alfresco
+    existingSecret:
+      name: alfresco-db-credentials
+  
+  messageBroker:
+    url: failover:(nio://activemq:61616)?timeout=3000
+    existingSecret:
+      name: activemq-credentials
+  
+  search:
+    flavor: elasticsearch
+    url: http://elasticsearch:9200
+    existingSecret:
+      name: elasticsearch-credentials
+
+persistence:
+  enabled: true
+  storageClass: gp3
+  baseSize: 100Gi
+
+resources:
+  requests:
+    cpu: "2"
+    memory: "4Gi"
+  limits:
+    cpu: "4"
+    memory: "8Gi"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+```
+
+## Additional Resources
+
+- [Build Your Own Charts Guide](/guides/build-your-own-charts)
+- [Alfresco Documentation](https://docs.alfresco.com/)

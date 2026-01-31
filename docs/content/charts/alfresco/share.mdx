@@ -1,0 +1,173 @@
+# Alfresco Share
+
+The `alfresco-share` chart deploys Alfresco Share - the web-based collaboration and document management interface for Alfresco Content Services.
+
+## Installation
+
+```bash
+helm install alfresco-share mbl-charts/alfresco-share -f values.yaml
+```
+
+## Overview
+
+Alfresco Share provides:
+
+- Web-based document management UI
+- Collaboration features (sites, workflows, comments)
+- Content preview and editing
+- User and group management interface
+- Customizable dashboards
+
+## Key Configuration
+
+### Repository Connection
+
+Share needs to connect to the Alfresco Repository:
+
+```yaml
+repository:
+  url: http://alfresco-repository
+  # Or using existing ConfigMap:
+  existingConfigMap:
+    name: repository-config
+```
+
+### Ingress
+
+```yaml
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: share.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: share-tls
+      hosts:
+        - share.example.com
+```
+
+### Resources
+
+```yaml
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1
+    memory: 1Gi
+```
+
+## Example Configuration
+
+### Basic Setup
+
+```yaml
+replicaCount: 1
+
+repository:
+  url: http://alfresco-repository
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: share.local
+      paths:
+        - path: /share
+          pathType: Prefix
+```
+
+### Production Setup
+
+```yaml
+replicaCount: 2
+
+repository:
+  existingConfigMap:
+    name: alfresco-repository-config
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/affinity: cookie
+  hosts:
+    - host: share.example.com
+      paths:
+        - path: /share
+          pathType: Prefix
+  tls:
+    - secretName: share-tls
+      hosts:
+        - share.example.com
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2
+    memory: 2Gi
+```
+
+## Customization
+
+### Custom Share Configuration
+
+You can provide custom Share configuration via ConfigMap:
+
+```yaml
+extraVolumes:
+  - name: custom-config
+    configMap:
+      name: share-custom-config
+
+extraVolumeMounts:
+  - name: custom-config
+    mountPath: /usr/local/tomcat/shared/classes/alfresco/web-extension/share-config-custom.xml
+    subPath: share-config-custom.xml
+```
+
+### Custom Theme
+
+To apply a custom theme:
+
+```yaml
+extraVolumes:
+  - name: custom-theme
+    configMap:
+      name: share-custom-theme
+
+extraVolumeMounts:
+  - name: custom-theme
+    mountPath: /usr/local/tomcat/webapps/share/themes/custom
+```
+
+## Common Issues
+
+### Share Cannot Connect to Repository
+
+1. Verify repository URL is correct
+2. Check network policies allow communication
+3. Verify repository is healthy
+
+### Session Affinity Issues
+
+When running multiple replicas, ensure sticky sessions:
+
+```yaml
+ingress:
+  annotations:
+    nginx.ingress.kubernetes.io/affinity: cookie
+    nginx.ingress.kubernetes.io/session-cookie-name: "SHARESESSION"
+```
+
+## Additional Resources
+
+- [Alfresco Share Documentation](https://docs.alfresco.com/content-services/latest/using/share/)
+- [Share Configuration Guide](https://docs.alfresco.com/content-services/latest/config/share/)

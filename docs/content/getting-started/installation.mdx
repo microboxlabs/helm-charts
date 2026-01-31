@@ -1,0 +1,58 @@
+# Installation
+
+## Prerequisites
+
+- Kubernetes cluster (1.23+)
+- Helm 3.10+
+- `kubectl` configured to connect to your cluster
+
+## Add the Repository
+
+```bash
+helm repo add mbl-charts https://microboxlabs.github.io/helm-charts/
+helm repo update
+```
+
+## Verify Installation
+
+List available charts:
+
+```bash
+helm search repo mbl-charts
+```
+
+You should see output similar to:
+
+```
+NAME                              CHART VERSION   APP VERSION   DESCRIPTION
+mbl-charts/quarkus-sse            0.1.2           1.16.0        A Helm chart for Quarkus SSE applications
+mbl-charts/alfresco-repository    0.4.0           23.2.1        Alfresco Content Repository
+...
+```
+
+## Installing a Chart
+
+To install a chart, use:
+
+```bash
+helm install [RELEASE_NAME] mbl-charts/[CHART_NAME] -f values.yaml
+```
+
+For example, to install the Quarkus SSE chart:
+
+```bash
+helm install my-app mbl-charts/quarkus-sse
+```
+
+## Upgrading Charts
+
+```bash
+helm repo update
+helm upgrade [RELEASE_NAME] mbl-charts/[CHART_NAME]
+```
+
+## Uninstalling
+
+```bash
+helm uninstall [RELEASE_NAME]
+```

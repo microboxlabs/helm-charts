@@ -1,0 +1,166 @@
+# Alfresco Search Enterprise
+
+The `alfresco-search-enterprise` chart deploys Elasticsearch-based search capabilities for Alfresco Content Services, providing scalable and performant content discovery.
+
+## Installation
+
+```bash
+helm install alfresco-search mbl-charts/alfresco-search-enterprise -f values.yaml
+```
+
+## Overview
+
+Alfresco Search Enterprise uses Elasticsearch as the search backend, replacing the legacy Solr-based search. It provides:
+
+- Full-text search across content and metadata
+- Faceted search capabilities
+- Scalable search infrastructure
+- Real-time indexing via message events
+
+## Architecture
+
+```
+┌─────────────────┐     ┌─────────────────┐
+│   Repository    │────▶│    ActiveMQ     │
+└─────────────────┘     └────────┬────────┘
+                                 │
+                                 ▼
+                        ┌─────────────────┐
+                        │  Live Indexing  │
+                        │    Service      │
+                        └────────┬────────┘
+                                 │
+                                 ▼
+                        ┌─────────────────┐
+                        │  Elasticsearch  │
+                        └─────────────────┘
+```
+
+## Key Configuration
+
+### Elasticsearch Connection
+
+```yaml
+elasticsearch:
+  host: elasticsearch
+  port: 9200
+  protocol: http
+  # For secured clusters:
+  user: elastic
+  password: your-password
+```
+
+Using existing secrets:
+
+```yaml
+elasticsearch:
+  existingSecret:
+    name: elasticsearch-credentials
+    keys:
+      username: ES_USERNAME
+      password: ES_PASSWORD
+```
+
+### Message Broker (ActiveMQ)
+
+The search service consumes events from ActiveMQ to keep the index updated:
+
+```yaml
+messageBroker:
+  url: failover:(nio://activemq:61616)?timeout=3000
+  username: admin
+  password: admin
+```
+
+### Reindexing
+
+Configure the reindexing service for initial index creation or rebuilds:
+
+```yaml
+reindexing:
+  enabled: true
+  resources:
+    requests:
+      memory: 1Gi
+    limits:
+      memory: 2Gi
+```
+
+## Example Configuration
+
+### Basic Setup
+
+```yaml
+elasticsearch:
+  host: elasticsearch-master
+  port: 9200
+  protocol: https
+  existingSecret:
+    name: elasticsearch-credentials
+
+messageBroker:
+  url: failover:(nio://activemq:61616)?timeout=3000
+  existingSecret:
+    name: activemq-credentials
+
+liveIndexing:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1
+      memory: 2Gi
+```
+
+### High Availability Setup
+
+```yaml
+liveIndexing:
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+
+mediation:
+  replicaCount: 2
+```
+
+## Integration with Repository
+
+Configure the repository to use Search Enterprise:
+
+```yaml
+# In alfresco-repository values
+configuration:
+  search:
+    flavor: elasticsearch
+    url: http://elasticsearch:9200
+    username: elastic
+    password: your-password
+```
+
+## Troubleshooting
+
+### Index Not Updating
+
+1. Check ActiveMQ connectivity
+2. Verify the live indexing pods are running
+3. Check logs for connection errors
+
+```bash
+kubectl logs -l app.kubernetes.io/name=alfresco-search-enterprise
+```
+
+### Search Returns No Results
+
+1. Verify Elasticsearch is healthy
+2. Check if reindexing is needed
+3. Confirm repository search configuration
+
+## Additional Resources
+
+- [Alfresco Search Enterprise Documentation](https://docs.alfresco.com/search-enterprise/)
+- [Elasticsearch Documentation](https://www.elastic.co/guide/index.html)

@@ -1,0 +1,186 @@
+# ActiveMQ
+
+The `activemq` chart deploys Apache ActiveMQ as a message broker for Alfresco Content Services, enabling asynchronous communication between components.
+
+## Installation
+
+```bash
+helm install activemq mbl-charts/activemq -f values.yaml
+```
+
+## Overview
+
+ActiveMQ provides:
+
+- Asynchronous messaging between Alfresco components
+- Event-driven architecture support
+- Transform service coordination
+- Search indexing events
+
+## Architecture
+
+ActiveMQ acts as the central message hub for Alfresco:
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ Repository  │────▶│  ActiveMQ   │────▶│   Search    │
+└─────────────┘     └──────┬──────┘     └─────────────┘
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │  Transform  │
+                    │   Service   │
+                    └─────────────┘
+```
+
+## Key Configuration
+
+### Credentials
+
+```yaml
+adminUser:
+  username: admin
+  password: admin
+  # Or use existing secret:
+  existingSecret:
+    name: activemq-credentials
+```
+
+### Persistence
+
+```yaml
+persistence:
+  enabled: true
+  storageClass: gp3
+  size: 10Gi
+```
+
+### Resources
+
+```yaml
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1
+    memory: 2Gi
+```
+
+## Example Configuration
+
+### Basic Setup
+
+```yaml
+adminUser:
+  username: admin
+  password: admin
+
+persistence:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+```
+
+### Production Setup
+
+```yaml
+adminUser:
+  existingSecret:
+    name: activemq-credentials
+
+persistence:
+  enabled: true
+  storageClass: gp3
+  size: 20Gi
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2
+    memory: 2Gi
+
+# Enable web console
+webConsole:
+  enabled: true
+  ingress:
+    enabled: true
+    host: activemq-console.example.com
+```
+
+## Ports
+
+| Port | Protocol | Description |
+|------|----------|-------------|
+| 61616 | OpenWire | Primary messaging protocol |
+| 5672 | AMQP | Advanced Message Queuing Protocol |
+| 61613 | STOMP | Simple Text Oriented Messaging Protocol |
+| 8161 | HTTP | Web Console |
+
+## Connecting Components
+
+Other Alfresco components connect to ActiveMQ using a failover URL:
+
+```yaml
+# In other chart values
+messageBroker:
+  url: failover:(nio://activemq:61616)?timeout=3000
+  username: admin
+  password: admin
+```
+
+## Monitoring
+
+### Web Console
+
+Enable the web console for monitoring:
+
+```yaml
+webConsole:
+  enabled: true
+```
+
+Access at `http://activemq:8161/admin`
+
+### Health Check
+
+```bash
+kubectl exec -it deploy/activemq -- /opt/activemq/bin/activemq status
+```
+
+## High Availability
+
+For production, consider:
+
+1. **Network of Brokers** - Multiple ActiveMQ instances
+2. **Persistence** - Enable to survive pod restarts
+3. **Resource allocation** - Adequate memory for message buffering
+
+## Troubleshooting
+
+### Messages Not Being Processed
+
+1. Check ActiveMQ logs
+2. Verify consumer connections
+3. Check queue depth in web console
+
+### Connection Refused
+
+1. Verify service is running
+2. Check credentials
+3. Ensure port accessibility
+
+```bash
+kubectl logs deploy/activemq
+kubectl get svc activemq
+```
+
+## Additional Resources
+
+- [Apache ActiveMQ Documentation](https://activemq.apache.org/documentation)
+- [Alfresco Message Broker Configuration](https://docs.alfresco.com/)

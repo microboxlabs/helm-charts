@@ -1,0 +1,146 @@
+# Alfresco Sync Service
+
+The `alfresco-sync-service` chart deploys the Desktop Sync service, enabling offline content access and synchronization for Alfresco Content Services.
+
+## Installation
+
+```bash
+helm install sync-service mbl-charts/alfresco-sync-service -f values.yaml
+```
+
+## Overview
+
+Alfresco Sync Service provides:
+
+- Desktop synchronization for Windows and macOS
+- Offline content access
+- Conflict resolution
+- Selective sync capabilities
+
+## Key Configuration
+
+### Repository Connection
+
+```yaml
+repository:
+  url: http://alfresco-repository
+  existingSecret:
+    name: sync-service-credentials
+```
+
+### Database
+
+Sync Service requires its own PostgreSQL database:
+
+```yaml
+postgresql:
+  enabled: true
+  auth:
+    database: syncservice
+    username: syncservice
+    password: your-password
+```
+
+Or use an external database:
+
+```yaml
+database:
+  url: jdbc:postgresql://postgres:5432/syncservice
+  username: syncservice
+  existingSecret:
+    name: sync-db-credentials
+```
+
+### Message Broker
+
+```yaml
+messageBroker:
+  url: failover:(nio://activemq:61616)?timeout=3000
+  existingSecret:
+    name: activemq-credentials
+```
+
+## Example Configuration
+
+### Basic Setup
+
+```yaml
+replicaCount: 1
+
+repository:
+  url: http://alfresco-repository
+
+postgresql:
+  enabled: true
+  auth:
+    database: syncservice
+    username: syncservice
+    password: syncservice
+
+messageBroker:
+  url: failover:(nio://activemq:61616)?timeout=3000
+```
+
+### Production Setup
+
+```yaml
+replicaCount: 2
+
+repository:
+  url: http://alfresco-repository
+  existingSecret:
+    name: sync-service-credentials
+
+database:
+  url: jdbc:postgresql://postgres.database.svc:5432/syncservice
+  existingSecret:
+    name: sync-db-credentials
+
+messageBroker:
+  url: failover:(nio://activemq:61616)?timeout=3000
+  existingSecret:
+    name: activemq-credentials
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2
+    memory: 2Gi
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: sync.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+```
+
+## Client Configuration
+
+Desktop Sync clients connect to the sync service endpoint. Configure the client with:
+
+- **Server URL**: `https://sync.example.com`
+- **Repository credentials**: User's Alfresco credentials
+
+## Troubleshooting
+
+### Sync Not Working
+
+1. Check sync service logs
+2. Verify repository connectivity
+3. Ensure ActiveMQ is healthy
+
+### Database Connection Issues
+
+```bash
+kubectl logs -l app.kubernetes.io/name=alfresco-sync-service
+```
+
+## Additional Resources
+
+- [Alfresco Desktop Sync Documentation](https://docs.alfresco.com/sync-service/)
+- [Desktop Sync Client Download](https://www.alfresco.com/products/desktop-sync)

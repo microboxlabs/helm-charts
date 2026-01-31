@@ -1,0 +1,49 @@
+# MBL Helm Charts
+
+Welcome to the MicroboxLabs Helm Charts documentation.
+
+This repository contains a curated distribution of Helm charts including:
+
+- **Alfresco Helm Charts** - A maintained fork of the official [Alfresco Helm Charts](https://github.com/Alfresco/alfresco-helm-charts) with additional customizations
+- **Custom Charts** - Our own charts for deploying applications like Quarkus SSE services
+
+## Quick Start
+
+Add the Helm repository:
+
+```bash
+helm repo add mbl-charts https://microboxlabs.github.io/helm-charts/
+helm repo update
+```
+
+Search available charts:
+
+```bash
+helm search repo mbl-charts
+```
+
+## What's Included
+
+### Alfresco Charts
+
+The full suite of Alfresco Content Services charts, including:
+
+- `alfresco-repository` - Alfresco Content Repository
+- `alfresco-search-enterprise` - Elasticsearch-based search
+- `alfresco-transform-service` - Document transformation services
+- `alfresco-share` - Alfresco Share UI
+- And many more...
+
+### Custom Charts
+
+- `quarkus-sse` - Helm chart for deploying Quarkus Server-Sent Events applications
+
+## Why This Distribution?
+
+We maintain this fork to:
+
+1. **Add custom options** not available in the upstream Alfresco charts
+2. **Bundle with our own charts** for a unified deployment experience
+3. **Stay synchronized** with upstream improvements via automated tooling
+
+Check out the [Getting Started](/getting-started/installation) guide to begin.

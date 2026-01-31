@@ -1,0 +1,79 @@
+# Alfresco Helm Charts
+
+This section contains documentation for the Alfresco Content Services Helm charts.
+
+These charts are a maintained fork of the official [Alfresco Helm Charts](https://github.com/Alfresco/alfresco-helm-charts) repository, with additional customizations for the MBL distribution.
+
+## Available Charts
+
+### Core Components
+
+| Chart | Description |
+|-------|-------------|
+| [alfresco-repository](/charts/alfresco/repository) | Alfresco Content Repository - the core content management component |
+| [alfresco-share](/charts/alfresco/share) | Alfresco Share - web-based collaboration interface |
+
+### Search & Indexing
+
+| Chart | Description |
+|-------|-------------|
+| [alfresco-search-enterprise](/charts/alfresco/search-enterprise) | Elasticsearch-based search for scalable content discovery |
+| alfresco-search-service | Solr-based search (legacy) |
+
+### Transformation & Processing
+
+| Chart | Description |
+|-------|-------------|
+| [alfresco-transform-service](/charts/alfresco/transform-service) | Document transformation services for file conversion |
+
+### Sync & Integration
+
+| Chart | Description |
+|-------|-------------|
+| [alfresco-sync-service](/charts/alfresco/sync-service) | Desktop Sync for offline content access |
+| alfresco-connector-ms365 | Microsoft 365 integration |
+| alfresco-connector-msteams | Microsoft Teams integration |
+
+### Infrastructure
+
+| Chart | Description |
+|-------|-------------|
+| [activemq](/charts/alfresco/activemq) | ActiveMQ message broker for async communication |
+| alfresco-common | Shared library chart with helper templates |
+
+## Architecture
+
+The Alfresco Content Services platform consists of multiple components that work together:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Ingress                               │
+└─────────────────────────────────────────────────────────────┘
+         │                    │                    │
+         ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│  Alfresco Share │  │   Repository    │  │   Transform     │
+│     (UI)        │  │   (Core API)    │  │    Service      │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+                              │                    │
+                              ▼                    │
+                     ┌─────────────────┐          │
+                     │   PostgreSQL    │          │
+                     │   (Database)    │          │
+                     └─────────────────┘          │
+                              │                    │
+         ┌────────────────────┴────────────────────┘
+         ▼
+┌─────────────────┐  ┌─────────────────┐
+│    ActiveMQ     │  │  Elasticsearch  │
+│   (Messaging)   │  │    (Search)     │
+└─────────────────┘  └─────────────────┘
+```
+
+## Getting Started
+
+See the [Build Your Own Charts](/guides/build-your-own-charts) guide for instructions on creating a custom Alfresco deployment.
+
+## Upstream Sync
+
+This distribution stays synchronized with the upstream Alfresco repository. Changes are automatically detected and merged via our CI/CD pipeline.

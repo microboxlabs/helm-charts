@@ -1,0 +1,179 @@
+# Alfresco Transform Service
+
+The `alfresco-transform-service` chart deploys the document transformation services for Alfresco Content Services, enabling file format conversions and thumbnail generation.
+
+## Installation
+
+```bash
+helm install transform-service mbl-charts/alfresco-transform-service -f values.yaml
+```
+
+## Overview
+
+The Transform Service provides:
+
+- Document format conversion (e.g., Office to PDF)
+- Image transformations and thumbnails
+- Metadata extraction
+- Content renditions
+
+## Architecture
+
+```
+┌─────────────────┐
+│   Repository    │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Transform      │
+│    Router       │
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    ▼         ▼
+┌───────┐ ┌───────┐
+│ T-PDF │ │T-Image│  ... (other transformers)
+└───────┘ └───────┘
+```
+
+## Components
+
+| Component | Description |
+|-----------|-------------|
+| Transform Router | Routes transformation requests to appropriate transformers |
+| Transform Core AIO | All-in-one transformer for common formats |
+| PDF Transformer | Specialized PDF transformations |
+| ImageMagick Transformer | Image format conversions |
+| LibreOffice Transformer | Office document conversions |
+
+## Key Configuration
+
+### Transform Router
+
+```yaml
+transformrouter:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+```
+
+### Message Broker
+
+```yaml
+messageBroker:
+  url: failover:(nio://activemq:61616)?timeout=3000
+  username: admin
+  password: admin
+```
+
+### Shared File Store
+
+The transform service uses a shared file store for temporary files:
+
+```yaml
+filestore:
+  replicaCount: 1
+  persistence:
+    enabled: true
+    storageClass: gp3
+    size: 20Gi
+```
+
+## Example Configuration
+
+### Basic Setup
+
+```yaml
+transformrouter:
+  replicaCount: 1
+
+messageBroker:
+  url: failover:(nio://activemq:61616)?timeout=3000
+  existingSecret:
+    name: activemq-credentials
+
+filestore:
+  persistence:
+    enabled: true
+    size: 10Gi
+```
+
+### Production Setup with Dedicated Transformers
+
+```yaml
+transformrouter:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+
+pdfrenderer:
+  replicaCount: 2
+  
+imagemagick:
+  replicaCount: 2
+
+libreoffice:
+  replicaCount: 2
+  resources:
+    requests:
+      memory: 1Gi
+    limits:
+      memory: 2Gi
+
+tika:
+  replicaCount: 1
+
+filestore:
+  persistence:
+    enabled: true
+    storageClass: gp3
+    size: 50Gi
+```
+
+## Integration with Repository
+
+The repository automatically discovers and uses the transform service when configured:
+
+```yaml
+# In alfresco-repository values (no specific config needed if using same namespace)
+# Transform service is auto-discovered via ActiveMQ
+```
+
+## Resource Considerations
+
+Different transformers have different resource requirements:
+
+| Transformer | Memory (min) | Memory (recommended) | Notes |
+|------------|--------------|---------------------|-------|
+| Transform Router | 256Mi | 512Mi | Low resource usage |
+| PDF Renderer | 512Mi | 1Gi | Moderate |
+| ImageMagick | 512Mi | 1Gi | Depends on image sizes |
+| LibreOffice | 1Gi | 2Gi | High memory for Office docs |
+| Tika | 512Mi | 1Gi | Metadata extraction |
+
+## Troubleshooting
+
+### Transformations Failing
+
+1. Check transformer pod logs:
+```bash
+kubectl logs -l app.kubernetes.io/component=transform-router
+```
+
+2. Verify ActiveMQ connectivity
+3. Check file store availability
+
+### Slow Transformations
+
+1. Increase transformer replicas
+2. Add resource limits
+3. Consider dedicated transformers for heavy workloads
+
+## Additional Resources
+
+- [Alfresco Transform Service Documentation](https://docs.alfresco.com/transform-service/)

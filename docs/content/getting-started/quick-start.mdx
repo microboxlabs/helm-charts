@@ -1,0 +1,70 @@
+# Quick Start
+
+This guide walks you through deploying your first application using MBL Helm Charts.
+
+## Deploy Quarkus SSE Application
+
+### 1. Create a values file
+
+Create a `values.yaml` file with your configuration:
+
+```yaml
+replicaCount: 1
+
+image:
+  repository: your-registry/your-app
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: app.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+```
+
+### 2. Install the chart
+
+```bash
+helm install my-sse-app mbl-charts/quarkus-sse -f values.yaml
+```
+
+### 3. Verify deployment
+
+```bash
+kubectl get pods -l app.kubernetes.io/name=quarkus-sse
+kubectl get svc -l app.kubernetes.io/name=quarkus-sse
+```
+
+### 4. Access your application
+
+If you enabled ingress, access your app at `http://app.example.com`.
+
+For port-forwarding:
+
+```bash
+kubectl port-forward svc/my-sse-app-quarkus-sse 8080:8080
+```
+
+Then open `http://localhost:8080` in your browser.
+
+## Next Steps
+
+- Explore the [Charts Reference](/charts) for detailed configuration options
+- Check out the [Guides](/guides) for specific use cases
+- Review the [Alfresco Charts](/charts/alfresco) for Content Services deployments

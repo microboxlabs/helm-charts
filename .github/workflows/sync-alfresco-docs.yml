@@ -1,0 +1,124 @@
+name: Sync Alfresco Docs
+
+on:
+  push:
+    branches:
+      - trunk
+    paths:
+      - 'charts/alfresco/docs/**'
+      - 'charts/alfresco/charts/**/README.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-docs-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for documentation changes
+        id: check
+        run: |
+          echo "Checking for Alfresco documentation changes..."
+          
+          # Get changed files in the last commit
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD -- 'charts/alfresco/docs/' 'charts/alfresco/charts/**/README.md' 2>/dev/null || echo "")
+          
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Changed files:"
+            echo "$CHANGED_FILES"
+            
+            # Save changed files for the report
+            echo "$CHANGED_FILES" > /tmp/changed_docs.txt
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No documentation changes detected"
+          fi
+
+      - name: Generate sync report
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          cat > /tmp/sync-report.md << 'REPORT_EOF'
+          ## Documentation Sync Required
+          
+          Alfresco upstream documentation has changed and may need updates in the Nextra docs site.
+          
+          ### Changed Files
+          
+          The following files were modified in the upstream subtree:
+          
+          REPORT_EOF
+          
+          while IFS= read -r file; do
+            echo "- \`$file\`" >> /tmp/sync-report.md
+          done < /tmp/changed_docs.txt
+          
+          cat >> /tmp/sync-report.md << 'REPORT_EOF'
+          
+          ### Action Required
+          
+          1. Review the changes in the upstream docs:
+             ```bash
+             git diff HEAD~1 HEAD -- charts/alfresco/docs/
+             ```
+          
+          2. Update the corresponding Nextra documentation in `docs/content/`:
+             - `charts/alfresco/docs/*.md` → `docs/content/guides/*.mdx`
+             - `charts/alfresco/charts/*/README.md` → `docs/content/charts/alfresco/*.mdx`
+          
+          3. Test locally:
+             ```bash
+             cd docs && npm run dev
+             ```
+          
+          4. Commit and push changes to trigger docs deployment.
+          
+          ### Mapping Reference
+          
+          | Upstream Source | Nextra Destination |
+          |-----------------|-------------------|
+          | `charts/alfresco/docs/build-your-own-charts.md` | `docs/content/guides/build-your-own-charts.mdx` |
+          | `charts/alfresco/docs/guides/*.md` | `docs/content/charts/alfresco/*.mdx` |
+          | `charts/alfresco/charts/*/README.md` | `docs/content/charts/alfresco/*.mdx` |
+          
+          ---
+          *This issue was automatically created by the docs sync workflow.*
+          REPORT_EOF
+
+      - name: Check for existing open issue
+        if: steps.check.outputs.has_changes == 'true'
+        id: existing
+        run: |
+          EXISTING=$(gh issue list --label "documentation" --state open --search "Documentation Sync Required" --json number --jq '.[0].number' || echo "")
+          if [ -n "$EXISTING" ]; then
+            echo "existing_issue=$EXISTING" >> $GITHUB_OUTPUT
+            echo "Found existing issue: #$EXISTING"
+          else
+            echo "existing_issue=" >> $GITHUB_OUTPUT
+            echo "No existing issue found"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create or update issue
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          if [ -n "${{ steps.existing.outputs.existing_issue }}" ]; then
+            echo "Updating existing issue #${{ steps.existing.outputs.existing_issue }}"
+            gh issue comment "${{ steps.existing.outputs.existing_issue }}" --body-file /tmp/sync-report.md
+          else
+            echo "Creating new issue"
+            gh issue create \
+              --title "Documentation Sync Required: Alfresco upstream docs changed" \
+              --body-file /tmp/sync-report.md \
+              --label "documentation"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
