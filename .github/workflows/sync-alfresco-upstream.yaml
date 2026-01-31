@@ -24,7 +24,8 @@ jobs:
         run: git remote add alfresco-upstream https://github.com/Alfresco/alfresco-helm-charts.git
 
       - name: Fetch upstream
-        run: git fetch alfresco-upstream main
+        # Use --no-tags to avoid importing Alfresco's release tags which conflict with our own
+        run: git fetch alfresco-upstream main --no-tags
 
       - name: Check for changes
         id: check
