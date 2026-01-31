@@ -1,0 +1,13 @@
+# Defines the properties required by the alfresco-connector-ms365 container
+{{- if not .Values.repository.existingConfigMap.name -}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "alfresco-connector-ms365.fullname" . }}
+  labels:
+    {{- include "alfresco-connector-ms365.labels" . | nindent 4 }}
+data:
+    REPO_HOST: {{ .Values.repository.host | quote }}
+    REPO_PORT: {{ .Values.repository.port | quote }}
+{{- end }}

@@ -1,0 +1,171 @@
+---
+suite: test solr deployment
+templates:
+  - deployment.yaml
+  - config.yaml
+tests:
+  - it: should have basic metadata in place
+    values: &testvalues
+      - values/test_values.yaml
+    template: deployment.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-solr
+
+  - it: should render annotations and environments
+    values: *testvalues
+    set:
+      podAnnotations: &annotated
+        kubernetes.io/description: Unit testing
+      podLabels:
+        a_label: true
+      environment:
+        someother: value
+    template: deployment.yaml
+    asserts:
+      - isSubset:
+          path: spec.template.metadata.annotations
+          content: *annotated
+      - isSubset:
+          path: spec.template.metadata.labels
+          content:
+            a_label: true
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SOLR_ALFRESCO_SECURECOMMS_SECRET
+            valueFrom:
+              secretKeyRef:
+                key: SOLR_ALFRESCO_SECURECOMMS_SECRET
+                name: RELEASE-NAME-solr-repository-config
+                optional: true
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SOLR_SOLR_HOST
+            value: RELEASE-NAME-solr
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SOLR_SOLR_PORT
+            value: "80"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SOLR_CREATE_ALFRESCO_DEFAULTS
+            value: alfresco,archive
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: someother
+            value: value
+
+  - it: should render default pvc volumes
+    values: *testvalues
+    template: deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts
+          value:
+            - name: data
+              mountPath: /opt/alfresco-search-services/data
+              subPath: alfresco-content-services/solr-data
+      - equal:
+          path: spec.template.spec.volumes
+          value:
+            - name: data
+              persistentVolumeClaim:
+                claimName: solr-default-pvc
+
+  - it: should render custom pvc volumes
+    template: deployment.yaml
+    values: *testvalues
+    set:
+      volumeMounts:
+        - mountPath: /path/to/mount/from/volume/
+          name: test
+      volumes:
+        - name: test
+          secret:
+            secretName: test-secret
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts
+          value:
+            - name: data
+              mountPath: /opt/alfresco-search-services/data
+              subPath: alfresco-content-services/solr-data
+            - mountPath: /path/to/mount/from/volume/
+              name: test
+      - equal:
+          path: spec.template.spec.volumes
+          value:
+            - name: data
+              persistentVolumeClaim:
+                claimName: solr-default-pvc
+            - name: test
+              secret:
+                secretName: test-secret
+
+  - it: should render default cpu and memory limits
+    values: *testvalues
+    template: deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: "0.50"
+              memory: "1200Mi"
+            limits:
+              cpu: "4"
+              memory: "2000Mi"
+
+  - it: should render custom cpu and memory limits
+    set:
+      resources:
+        requests:
+          cpu: "1"
+          memory: "1500Mi"
+        limits:
+          cpu: "4"
+          memory: "3000Mi"
+    template: deployment.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              cpu: "1"
+              memory: "1500Mi"
+            limits:
+              cpu: "4"
+              memory: "3000Mi"
+
+  - it: should render labels for deployment
+    values: *testvalues
+    set:
+      nameOverride: testName
+      additionalLabels:
+        my-custom-chart-label: custom-value
+      global:
+        additionalLabels:
+          my-global-custom-label: global-custom-value
+          my-custom-chart-label: global-custom-value
+    chart:
+      version: 1.0.0
+      appVersion: 2.0.0
+    template: deployment.yaml
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            app.kubernetes.io/component: alfresco-search-service
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: testName
+            app.kubernetes.io/version: 2.0.0
+            helm.sh/chart: alfresco-search-service-1.0.0
+            my-custom-chart-label: custom-value
+            my-global-custom-label: global-custom-value

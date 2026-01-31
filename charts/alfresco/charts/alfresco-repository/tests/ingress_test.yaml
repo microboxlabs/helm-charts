@@ -1,0 +1,85 @@
+---
+suite: test Alfresco repository ingress
+templates:
+  - ingress.yaml
+tests:
+  - it: should render with default security annotations
+    asserts:
+      - equal:
+          path: metadata.annotations['nginx.ingress.kubernetes.io/server-snippet']
+          value: |
+            location ~ ^/.*/(wc)?s(ervice)?/api/solr/.*$ {return 403;}
+            location ~ ^/.*/proxy/.*/api/solr/.*$ {return 403;}
+            location ~ ^/.*/-default-/proxy/.*/api/.*$ {return 403;}
+            location ~ ^/.*/s/prometheus$ {return 403;}
+      - equal:
+          path: spec.ingressClassName
+          value: nginx
+
+  - it: should sanitize ingress
+    set:
+      ingress:
+        annotations:
+          nginx.ingress.kubernetes.io/server-snippet: listen 6666;
+    asserts:
+      - notMatchRegex:
+          path: metadata.annotations['nginx.ingress.kubernetes.io/server-snippet']
+          pattern: listen 6666;
+      - equal:
+          path: spec.ingressClassName
+          value: nginx
+
+  - it: should render default rules section
+    asserts:
+      - equal:
+          path: spec.rules
+          value:
+            - host:
+              http:
+                paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                      service:
+                        name: RELEASE-NAME-alfresco-repository
+                        port:
+                          number: 80
+                  - path: /api-explorer
+                    pathType: Prefix
+                    backend:
+                      service:
+                        name: RELEASE-NAME-alfresco-repository
+                        port:
+                          number: 80
+
+  - it: should render tls section with specified values
+    set:
+      ingress:
+        tls:
+         - secretName: chart-example-tls
+           hosts:
+             - chart-example.local
+    asserts:
+      - equal:
+          path: spec.tls
+          value:
+            - hosts:
+                - "chart-example.local"
+              secretName: chart-example-tls
+
+  - it: should render labels for ingress
+    chart:
+      version: 1.0.0
+      appVersion: 2.0.0
+    set:
+      nameOverride: testName
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            app.kubernetes.io/component: alfresco-repository
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: testName
+            app.kubernetes.io/version: 2.0.0
+            helm.sh/chart: alfresco-repository-1.0.0

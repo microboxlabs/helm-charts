@@ -1,0 +1,15 @@
+{{- if not .Values.repository.existingConfigMap.name }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "alfresco-insight-zeppelin.deployment.name" . }}
+  labels:
+    {{- include "alfresco-insight-zeppelin.labels" . | nindent 4 }}
+data:
+  {{- with .Values.repository }}
+  REPO_HOST: >-
+    {{ template "alfresco-common.url.host" .url }}
+  REPO_PORT: >-
+    {{ template "alfresco-common.url.port" .url }}
+  {{- end }}
+{{- end }}

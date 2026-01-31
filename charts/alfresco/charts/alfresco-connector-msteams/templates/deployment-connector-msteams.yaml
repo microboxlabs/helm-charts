@@ -1,0 +1,52 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "alfresco-connector-msteams.fullname" . }}
+  labels:
+    {{- include "alfresco-connector-msteams.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "alfresco-connector-msteams.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      {{- toYaml .Values.strategy.rollingUpdate | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config-connector-msteams.yaml") . | sha256sum }}
+      labels:
+        {{- include "alfresco-connector-msteams.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "alfresco-connector-msteams.serviceAccountName" . }}
+      {{- include "alfresco-common.component-pod-security-context" .Values | indent 4 }}
+      {{- if .Values.nodeSelector }}
+        nodeSelector: {{- .Values.nodeSelector | toYaml | nindent 8 }}
+      {{- end }}
+      {{- include "alfresco-common.imagePullSecrets" . | indent 6 }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "alfresco-common.component-security-context" .Values | indent 8 }}
+          envFrom:
+            - configMapRef:
+                name: {{ template "alfresco-connector-msteams.fullname" . }}
+          env:
+            {{- include "alfresco-connector-msteams.repo-msteams.env" $ | nindent 12 }}
+            {{- include "alfresco-connector-msteams.secret-msteams.env" $ | nindent 12 }}
+          ports:
+            - name: service-port
+              containerPort: {{ .Values.image.internalPort }}
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}

@@ -1,0 +1,119 @@
+---
+name: Bump versions
+run-name: Bump ${{ inputs.update-type }} using alfresco-updatecli/${{ inputs.alfresco-updatecli-ref }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      update-type:
+        description: 'Which dependencies to bump'
+        type: choice
+        options:
+        - charts
+        - values
+      alfresco-updatecli-ref:
+        description: "The version to use for alfresco/alfresco-updatecli configs (used only when `values` is selected)"
+        type: string
+        default: master
+
+jobs:
+  bump-charts-dependencies:
+    runs-on: ubuntu-latest
+    name: Helm charts dependencies
+    if: inputs.update-type == 'charts'
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          token: ${{ secrets.BOT_GITHUB_TOKEN }}
+
+      - uses: >-
+          Alfresco/alfresco-build-tools/.github/actions/get-branch-name@v12.4.2
+
+      - name: Login to quay.io
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Install Updatecli
+        uses: Alfresco/alfresco-build-tools/.github/actions/setup-updatecli@v12.4.2
+
+      - run: updatecli apply
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
+      - uses: Alfresco/alfresco-build-tools/.github/actions/setup-helm-docs@abf5c06a9dce1ef819dce81150f84d1c66908e0b # v9.5.0
+      - name: Regenerate helm docs if necessary
+        uses: Alfresco/alfresco-build-tools/.github/actions/pre-commit@abf5c06a9dce1ef819dce81150f84d1c66908e0b # v9.5.0
+        with:
+          pre-commit-args: helm-docs || true
+          skip_checkout: "true"
+
+      - name: Git Auto Commit
+        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9 # v7.1.0
+        with:
+          commit_message: |
+            🛠 Updatecli pipeline bump
+          commit_user_name: ${{ vars.BOT_GITHUB_USERNAME }}
+          commit_user_email: ${{ vars.BOT_GITHUB_EMAIL }}
+          branch: ${{ github.ref_name == 'main' && 'updatecli-bump-helm' || github.ref_name }}
+          create_branch: ${{ github.ref_name == 'main' && 'true' || 'false' }}
+          push_options: ${{ github.ref_name == 'main' && '--force' || '' }}
+
+  bump-values-dependencies:
+    runs-on: ubuntu-latest
+    name: Image tags values dependencies
+    if: inputs.update-type == 'values'
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          token: ${{ secrets.BOT_GITHUB_TOKEN }}
+
+      - uses: >-
+          Alfresco/alfresco-build-tools/.github/actions/get-branch-name@v12.4.2
+
+      - name: Login to quay.io
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Install Updatecli
+        uses: Alfresco/alfresco-build-tools/.github/actions/setup-updatecli@v12.4.2
+
+      - name: Checkout updatecli configs
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: alfresco/alfresco-updatecli
+          ref: ${{ inputs.alfresco-updatecli-ref || 'master' }}
+          path: alfresco-updatecli
+
+      - name: updatecli apply
+        env:
+          QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+          QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
+          UPDATECLI_GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
+        run: |
+          updatecli apply -c alfresco-updatecli/deployments/uber-manifest.tpl \
+            -v alfresco-updatecli/deployments/values/supported-matrix.yaml \
+            -v .github/updatecli-matrix-targets.yaml
+
+      - uses: Alfresco/alfresco-build-tools/.github/actions/setup-helm-docs@abf5c06a9dce1ef819dce81150f84d1c66908e0b # v9.5.0
+      - name: Regenerate helm docs if necessary
+        uses: Alfresco/alfresco-build-tools/.github/actions/pre-commit@abf5c06a9dce1ef819dce81150f84d1c66908e0b # v9.5.0
+        with:
+          pre-commit-args: helm-docs || true
+          skip_checkout: "true"
+
+      - name: Git Auto Commit
+        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9 # v7.1.0
+        with:
+          commit_message: |
+            🛠 Updatecli pipeline acs bump
+          commit_user_name: ${{ vars.BOT_GITHUB_USERNAME }}
+          commit_user_email: ${{ vars.BOT_GITHUB_EMAIL }}
+          branch: ${{ github.ref_name == 'main' && 'updatecli-bump-acs' || github.ref_name }}
+          create_branch: ${{ github.ref_name == 'main' && 'true' || 'false' }}
+          push_options: ${{ github.ref_name == 'main' && '--force' || '' }}

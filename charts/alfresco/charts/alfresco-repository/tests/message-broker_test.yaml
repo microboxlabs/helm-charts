@@ -1,0 +1,42 @@
+---
+suite: test Message Queue Broker
+templates:
+  - secret-message-broker.yaml
+  - deployment.yaml
+  - configmap-repository.yaml
+values:
+  - values/test_values.yaml
+tests:
+  - it: should render deployment w/ custom secret
+    set:
+      configuration:
+        messageBroker:
+          existingSecret:
+            name: mqSecret
+            keys:
+              username: mquser
+              password: mqpass
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BROKER_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: mqSecret
+                key: mquser
+                optional: true
+        template: deployment.yaml
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BROKER_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mqSecret
+                key: mqpass
+                optional: true
+        template: deployment.yaml
+      - hasDocuments:
+          count: 0
+        template: secret-message-broker.yaml

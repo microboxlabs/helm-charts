@@ -1,0 +1,37 @@
+---
+name: Pre-commit
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  pre_commit:
+    name: Run pre-commit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Ensure SHA pinned actions
+        uses: zgosalvez/github-actions-ensure-sha-pinned-actions@6124774845927d14c601359ab8138699fa5b70c3 # v4.0.1
+        with:
+          allowlist: |
+            Alfresco/alfresco-build-tools/
+
+      - name: Setup helm docs
+        uses: Alfresco/alfresco-build-tools/.github/actions/setup-helm-docs@abf5c06a9dce1ef819dce81150f84d1c66908e0b # v9.5.0
+
+      - name: Install kubeconform helm plugin
+        run: |
+          helm plugin install https://github.com/jtyr/kubeconform-helm --version v0.2.0
+
+      - name: Run pre-commit
+        uses: Alfresco/alfresco-build-tools/.github/actions/pre-commit@abf5c06a9dce1ef819dce81150f84d1c66908e0b # v9.5.0
+        with:
+          # disable auto-commit for PRs from forks
+          auto-commit: ${{ github.event_name != 'pull_request' || ! github.event.pull_request.head.repo.fork }}
+          python-version: 3.12

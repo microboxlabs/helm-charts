@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "activemq.fullname" . }}
+  labels:
+    {{- include "activemq.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "activemq.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        checksum/secret-activemq: {{ include (print $.Template.BasePath "/secret-activemq.yaml") . | sha256sum }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "activemq.labels" . | nindent 8 }}
+    spec:
+    {{- include "alfresco-common.component-pod-security-context" .Values | indent 4 }}
+      {{- include "alfresco-common.imagePullSecrets" . | indent 6 }}
+      containers:
+      - name: {{ .Values.service.name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- include "alfresco-common.component-security-context" .Values | indent 6 }}
+        env:
+        - name: ACTIVEMQ_CONFIG_MINMEMORY
+          value: "{{ .Values.resources.requests.memory | replace "Mi" "" }}"
+        - name: ACTIVEMQ_CONFIG_MAXMEMORY
+          value: "{{ .Values.resources.limits.memory | replace "Mi" "" }}"
+        - name: ACTIVEMQ_BROKER_NAME
+          value: "{{ template "activemq.fullname" . }}"
+        {{- $credentialsSecretName := default (printf "%s-brokersecret" (include "activemq.fullname" .)) $.Values.adminUser.existingSecretName }}
+        - name: ACTIVEMQ_ADMIN_LOGIN
+          valueFrom:
+            secretKeyRef:
+              name: {{ $credentialsSecretName }}
+              key: BROKER_USERNAME
+        - name: ACTIVEMQ_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ $credentialsSecretName }}
+              key: BROKER_PASSWORD
+        ports:
+        - name: stomp
+          containerPort: {{ .Values.services.broker.ports.internal.stomp | default 61613 }}
+        - name: openwire
+          containerPort: {{ .Values.services.broker.ports.internal.openwire | default 61616 }}
+        - name: amqp
+          containerPort: {{ .Values.services.broker.ports.internal.amqp | default 5672 }}
+        - name: web-console
+          containerPort: {{ .Values.services.webConsole.ports.internal.webConsole | default 8161 }}
+        livenessProbe:
+          {{- toYaml .Values.livenessProbe | nindent 12 }}
+        readinessProbe:
+          {{- toYaml .Values.readinessProbe | nindent 12 }}
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        volumeMounts:
+          - name: data
+            mountPath: {{ .Values.persistence.data.mountPath }}
+            subPath: {{ .Values.persistence.data.subPath }}
+      volumes:
+        {{- include "alfresco-common.data_volume" .Values | nindent 8 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 1

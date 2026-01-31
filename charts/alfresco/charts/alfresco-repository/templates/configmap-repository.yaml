@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: >-
+    {{- $optsCtx := dict "Values" (dict "nameOverride" "alfresco-opts") "Chart" .Chart "Release" .Release }}
+    {{ template "alfresco-repository.fullname" $optsCtx }}
+  labels:
+    {{- include "alfresco-repository.labels" . | nindent 4 }}
+data:
+  {{- range $key, $val := (omit .Values.environment "CATALINA_OPTS" "JAVA_OPTS") }}
+  {{ $key }}: {{ $val | quote }}
+  {{- end }}
+  CATALINA_OPTS: >-
+    {{- with .Values.configuration }}
+    -Ddeployment.method=HELM_CHART
+    -Ddb.url="$DATABASE_URL"
+    -Ddb.username=${DATABASE_USERNAME}
+    -Ddb.password=${DATABASE_PASSWORD}
+    -Ddb.driver="${DATABASE_DRIVER}"
+    -Dmessaging.broker.url="$BROKER_URL"
+    -Dmessaging.broker.username="$BROKER_USERNAME"
+    -Dmessaging.broker.password="$BROKER_PASSWORD"
+    -Dindex.subsystem.name="$SEARCH_FLAVOR"
+    -Dmetadata-keystore.password="$ENC_METADATA_STOREPASS"
+    -Dmetadata-keystore.metadata.password="$ENC_METADATA_KEYPASS"
+    {{- include "alfresco-repository.search.config" $ | indent 2 }}
+    {{- range .repository.existingSecrets }}
+      {{- if and .key (hasPrefix "property:" (.purpose |  default "")) }}
+        {{- $property := trimPrefix "property:" .purpose }}
+        {{- printf "-D%s=\"$%s\"" $property .key | nindent 4 }}
+      {{- end }}
+    {{- end }}
+    -Dimap.server.{{ eq "imaps" .imap.protocol | ternary .imap.protocol "" }}enabled={{ .imap.enabled }}
+    -Dimap.server.{{ eq "imaps" .imap.protocol | ternary .imap.protocol "" }}port={{ .imap.port }}
+    -Demail.server.enabled={{ .smtp.enabled | toString }}
+    -Demail.inbound.enabled={{ .smtp.enabled | toString }}
+    -Demail.server.port={{ .smtp.port | toString }}
+    {{- end }}
+    {{ .Values.environment.CATALINA_OPTS | default "" }}
+  JAVA_OPTS: >-
+    -Dencryption.keystore.type=JCEKS
+    -Dencryption.cipherAlgorithm=DESede/CBC/PKCS5Padding
+    -Dencryption.keyAlgorithm=DESede
+    -Dencryption.keystore.location=/usr/local/tomcat/shared/classes/alfresco/extension/keystore/keystore
+    -Dmetadata-keystore.aliases=metadata
+    -Dmetadata-keystore.metadata.algorithm=DESede
+    {{ .Values.environment.JAVA_OPTS | default "" }}

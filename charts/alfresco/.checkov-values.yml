@@ -1,0 +1,62 @@
+postgresql:
+  enabled: true
+activemq:
+  enabled: true
+configuration:
+  db:
+    url: postgresql://pg-postgresql-acs/alfresco
+    username: pguser
+    password: pgpass
+  messageBroker:
+    url: nio://activemq:61616
+global:
+  tracking:
+    sharedsecret: dummy
+repository:
+  sharedSecret: dummy
+  host: dummy
+  port: 8080
+
+index:
+  url: http://elasticsearch:9200
+
+elasticsearch:
+  enabled: true
+messageBroker:
+  url: amqp://something
+  user: admin
+  username: admin
+  password: dummy
+database:
+  username: postgres
+  password: dummy
+  url: jdbc:postgresql://hostname:5432/database
+
+reindexing:
+  db:
+    url: jdbc://something
+  repository:
+    url: http://something
+
+search:
+  url: es://something
+
+ats:
+  transform_url: http://transform
+  sfs_url: http://sfs
+  sfsUrl: http://sfs
+
+sfs:
+  url: http://sfs
+
+aws:
+  accessKeyId: dummy
+  secretAccessKey: dummy
+
+microsoft:
+  app:
+    id: dummy
+    password: dummy
+
+db:
+  url: jdbc:postgresql://hostname:5432/database

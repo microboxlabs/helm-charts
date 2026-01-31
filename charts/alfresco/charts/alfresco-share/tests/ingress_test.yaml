@@ -1,0 +1,36 @@
+---
+suite: test share ingress
+templates:
+  - ingress.yaml
+tests:
+  - it: should render with default security annotations
+    asserts:
+      - equal:
+          path: metadata.annotations['nginx.ingress.kubernetes.io/server-snippet']
+          value: |
+            location ~ ^/.*/(wc)?s(ervice)?/api/solr/.*$ {return 403;}
+            location ~ ^/.*/proxy/.*/api/solr/.*$ {return 403;}
+            location ~ ^/.*/-default-/proxy/.*/api/.*$ {return 403;}
+            location ~ ^/.*/s/prometheus$ {return 403;}
+        template: ingress.yaml
+      - equal:
+          path: spec.ingressClassName
+          value: nginx
+        template: ingress.yaml
+
+  - it: should render labels for ingress
+    chart:
+      version: 1.0.0
+      appVersion: 2.0.0
+    set:
+      nameOverride: testName
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            app.kubernetes.io/component: alfresco-share
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: testName
+            app.kubernetes.io/version: 2.0.0
+            helm.sh/chart: alfresco-share-1.0.0

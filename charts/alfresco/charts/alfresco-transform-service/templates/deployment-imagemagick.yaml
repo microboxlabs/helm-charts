@@ -1,0 +1,69 @@
+{{- if .Values.imagemagick.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "alfresco-transform-service.imagemagick.fullname" . }}
+  labels:
+    {{- include "alfresco-transform-service.imagemagick.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.imagemagick.autoscaling.enabled }}
+  replicas: {{ .Values.imagemagick.replicaCount }}
+  {{ end }}
+  selector:
+    matchLabels:
+      {{- include "alfresco-transform-service.imagemagick.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      {{- toYaml .Values.global.strategy.rollingUpdate | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- include "alfresco-transform-service.configsums" (dict "Context" $ "Component" "imagemagick") | indent 8 }}
+        {{- with .Values.imagemagick.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "alfresco-transform-service.imagemagick.labels" . | nindent 8 }}
+        {{- with .Values.imagemagick.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "alfresco-common.imagePullSecrets" . | indent 6 }}
+      serviceAccountName: {{ include "alfresco-transform-service.serviceAccountName" . }}
+      {{- include "alfresco-common.component-pod-security-context" .Values.imagemagick| indent 4 }}
+      containers:
+        - name: {{ template "alfresco-transform-service.imagemagick.name" . }}
+          image: "{{ .Values.imagemagick.image.repository }}:{{ .Values.imagemagick.image.tag }}"
+          imagePullPolicy: {{ .Values.imagemagick.image.pullPolicy }}
+          {{- include "component-security-context" .Values.imagemagick| indent 8 }}
+          envFrom:
+            - configMapRef:
+                name: {{ template "alfresco-transform-service.imagemagick.fullname" . }}
+          env:
+            {{- include "alfresco-transform-service.messageBroker.env" $ | nindent 12 }}
+          ports:
+            - containerPort: {{ .Values.imagemagick.image.internalPort }}
+          resources: {{- toYaml .Values.imagemagick.resources | nindent 12 }}
+          {{- with .Values.imagemagick.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{ include "alfresco-transform-service.probes" .Values.imagemagick | nindent 10 }}
+      {{- with .Values.imagemagick.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagemagick.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagemagick.affinity }}
+      affinity:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagemagick.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

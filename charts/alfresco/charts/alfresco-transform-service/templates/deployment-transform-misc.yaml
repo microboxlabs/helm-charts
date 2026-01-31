@@ -1,0 +1,69 @@
+{{- if .Values.transformmisc.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "alfresco-transform-service.transform-misc.fullname" . }}
+  labels:
+    {{- include "alfresco-transform-service.transform-misc.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.transformmisc.autoscaling.enabled }}
+  replicas: {{ .Values.transformmisc.replicaCount }}
+  {{ end }}
+  selector:
+    matchLabels:
+      {{- include "alfresco-transform-service.transform-misc.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+{{ toYaml .Values.global.strategy.rollingUpdate | indent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- include "alfresco-transform-service.configsums" (dict "Context" $ "Component" "transform-misc") | indent 8 }}
+        {{- with .Values.transformmisc.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "alfresco-transform-service.transform-misc.labels" . | nindent 8 }}
+        {{- with .Values.transformmisc.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "alfresco-common.imagePullSecrets" . | indent 6 }}
+      serviceAccountName: {{ include "alfresco-transform-service.serviceAccountName" . }}
+      {{- include "alfresco-common.component-pod-security-context" .Values.transformmisc | indent 4 }}
+      containers:
+        - name: {{ template "alfresco-transform-service.transform-misc.name" . }}
+          image: "{{ .Values.transformmisc.image.repository }}:{{ .Values.transformmisc.image.tag }}"
+          imagePullPolicy: {{ .Values.transformmisc.image.pullPolicy }}
+          {{- include "component-security-context" .Values.transformmisc | indent 8 }}
+          envFrom:
+            - configMapRef:
+                name: {{ template "alfresco-transform-service.transform-misc.fullname" . }}
+          env:
+            {{- include "alfresco-transform-service.messageBroker.env" $ | nindent 12 }}
+          ports:
+            - containerPort: {{ .Values.transformmisc.image.internalPort }}
+          resources: {{- toYaml .Values.transformmisc.resources | nindent 12 }}
+          {{- with .Values.transformmisc.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{ include "alfresco-transform-service.probes" .Values.transformmisc | nindent 10 }}
+      {{- with .Values.transformmisc.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.transformmisc.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.transformmisc.affinity }}
+      affinity:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.transformmisc.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

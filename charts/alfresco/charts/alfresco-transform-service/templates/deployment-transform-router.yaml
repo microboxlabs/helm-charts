@@ -1,0 +1,67 @@
+{{- if .Values.transformrouter.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "alfresco-transform-service.transform-router.fullname" . }}
+  labels:
+    {{- include "alfresco-transform-service.transform-router.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.transformrouter.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "alfresco-transform-service.transform-router.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      {{- toYaml .Values.global.strategy.rollingUpdate | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- include "alfresco-transform-service.configsums" (dict "Context" $ "Component" "transform-router") | indent 8 }}
+        {{- with .Values.transformrouter.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "alfresco-transform-service.transform-router.labels" . | nindent 8 }}
+        {{- with .Values.transformrouter.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "alfresco-common.imagePullSecrets" . | indent 6 }}
+      serviceAccountName: {{ include "alfresco-transform-service.serviceAccountName" . }}
+      {{- include "alfresco-common.component-pod-security-context" .Values.transformrouter | indent 4 }}
+      containers:
+        - name: {{ template "alfresco-transform-service.transform-router.name" . }}
+          image: "{{ .Values.transformrouter.image.repository }}:{{ .Values.transformrouter.image.tag }}"
+          imagePullPolicy: {{ .Values.transformrouter.image.pullPolicy }}
+          {{- include "component-security-context" .Values.transformrouter | indent 8 }}
+          envFrom:
+            - configMapRef:
+                name: {{ template "alfresco-transform-service.transform-router.fullname" . }}
+          env:
+            {{- include "alfresco-transform-service.messageBroker.env" $ | nindent 12 }}
+          ports:
+            - containerPort: {{ .Values.transformrouter.image.internalPort }}
+          resources: {{- toYaml .Values.transformrouter.resources | nindent 12 }}
+          {{ include "alfresco-transform-service.probes" .Values.transformrouter | nindent 10 }}
+          {{- with .Values.transformrouter.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.transformrouter.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.transformrouter.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.transformrouter.affinity }}
+      affinity:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.transformrouter.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

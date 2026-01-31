@@ -1,0 +1,864 @@
+---
+# -- Additional labels to be added to all resources (deployments, statefulsets, services, pods, etc.)
+# Example:
+#   Product: k8s
+#   Environment: DEV
+additionalLabels: {}
+transformrouter:
+  enabled: true
+  replicaCount: 1
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        # -- Prefer to schedule on different zones
+        - weight: 10
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - >-
+                      {{ template "alfresco-transform-service.transform-router.name" . }}
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - "{{ .Release.Name }}"
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - "{{ $.Chart.Name }}"
+            topologyKey: topology.kubernetes.io/zone
+        # -- Prefer to schedule on different nodes
+        - weight: 5
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - >-
+                      {{ template "alfresco-transform-service.transform-router.name" . }}
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - "{{ .Release.Name }}"
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - "{{ $.Chart.Name }}"
+            topologyKey: kubernetes.io/hostname
+  podAnnotations: {}
+  podLabels: {}
+  image:
+    repository: quay.io/alfresco/alfresco-transform-router
+    tag: 4.3.0
+    pullPolicy: IfNotPresent
+    internalPort: 8095
+  service:
+    name: transform-router
+    type: ClusterIP
+    externalPort: 80
+  environment:
+    JAVA_OPTS: >-
+      -XX:MinRAMPercentage=50
+      -XX:MaxRAMPercentage=80
+  readinessProbe:
+    path: /actuator/health
+    initialDelaySeconds: 20
+    periodSeconds: 60
+    timeoutSeconds: 10
+  livenessProbe:
+    path: /actuator/health
+    initialDelaySeconds: 20
+    periodSeconds: 30
+    timeoutSeconds: 10
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 33016
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "250Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+  volumes: []
+  volumeMounts: []
+pdfrenderer:
+  enabled: true
+  replicaCount: 2
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        # -- Prefer to schedule on different zones
+        - weight: 10
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - >-
+                      {{ template "alfresco-transform-service.pdfrenderer.name" . }}
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - "{{ .Release.Name }}"
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - "{{ $.Chart.Name }}"
+            topologyKey: topology.kubernetes.io/zone
+        # -- Prefer to schedule on different nodes
+        - weight: 5
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - >-
+                    {{ template "alfresco-transform-service.pdfrenderer.name" . }}
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - "{{ .Release.Name }}"
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - "{{ $.Chart.Name }}"
+            topologyKey: kubernetes.io/hostname
+  podAnnotations: {}
+  podLabels: {}
+  image:
+    repository: quay.io/alfresco/alfresco-pdf-renderer
+    tag: 5.3.0
+    pullPolicy: IfNotPresent
+    internalPort: 8090
+  service:
+    name: pdfrenderer
+    type: ClusterIP
+    externalPort: 80
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 33001
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "250Mi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+  environment:
+    JAVA_OPTS: >-
+      -XX:MinRAMPercentage=50
+      -XX:MaxRAMPercentage=80
+  readinessProbe:
+    path: /ready
+    initialDelaySeconds: 20
+    periodSeconds: 30
+    timeoutSeconds: 10
+  livenessProbe:
+    path: /live
+    initialDelaySeconds: 10
+    periodSeconds: 20
+    timeoutSeconds: 10
+    livenessPercent: 150
+    livenessTransformPeriodSeconds: 600
+    maxTransforms: 10000
+    maxTransformSeconds: 1200
+  volumes: []
+  volumeMounts: []
+  autoscaling:
+    # -- Toggle pdfrenderer autoscaling
+    enabled: false
+    # -- minimum number of replicas to spin up within the replicaset
+    minReplicas: 1
+    # -- maximum number of replicas to spin up within the replicaset
+    maxReplicas: 3
+    behavior:
+      scaleDown:
+        # -- list of available policies for scaling down
+        # scale down either by one pod or by destroying 25% of the pods (whichever is smaller)
+        policies:
+          - periodSeconds: 60
+            type: Pods
+            value: 1
+        stabilizationWindowSeconds: 60
+      scaleUp:
+        # -- list of available policies for scaling up
+        # scale up either by one pod or by adding 50% more pods (whichever is bigger)
+        policies:
+          - periodSeconds: 60
+            type: Percent
+            value: 50
+          - periodSeconds: 60
+            type: Pods
+            value: 2
+        stabilizationWindowSeconds: 30
+    # -- a list of resource the HPA controller should monitor
+    # For more details check
+    # https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-resource-metrics
+    metrics:
+      - resource:
+          name: cpu
+          target:
+            averageUtilization: 75
+            type: Utilization
+        type: Resource
+imagemagick:
+  enabled: true
+  replicaCount: 2
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        # -- Prefer to schedule on different zones
+        - weight: 10
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - >-
+                      {{ template "alfresco-transform-service.imagemagick.name" . }}
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - "{{ .Release.Name }}"
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - "{{ $.Chart.Name }}"
+            topologyKey: topology.kubernetes.io/zone
+        # -- Prefer to schedule on different nodes
+        - weight: 5
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - >-
+                      {{ template "alfresco-transform-service.imagemagick.name" . }}
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - "{{ .Release.Name }}"
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - "{{ $.Chart.Name }}"
+            topologyKey: kubernetes.io/hostname
+  podAnnotations: {}
+  podLabels: {}
+  image:
+    repository: quay.io/alfresco/alfresco-imagemagick
+    tag: 5.3.0
+    pullPolicy: IfNotPresent
+    internalPort: 8090
+  service:
+    name: imagemagick
+    type: ClusterIP
+    externalPort: 80
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 33002
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "250Mi"
+    limits:
+      cpu: "4"
+      memory: "4Gi"
+  environment:
+    JAVA_OPTS: >-
+      -XX:MinRAMPercentage=50
+      -XX:MaxRAMPercentage=80
+  readinessProbe:
+    path: /ready
+    initialDelaySeconds: 20
+    periodSeconds: 30
+    timeoutSeconds: 10
+  livenessProbe:
+    path: /live
+    initialDelaySeconds: 10
+    periodSeconds: 20
+    timeoutSeconds: 10
+    livenessPercent: 150
+    livenessTransformPeriodSeconds: 600
+    maxTransforms: 10000
+    maxTransformSeconds: 900
+  volumes: []
+  volumeMounts: []
+  autoscaling:
+    # -- Toggle imagemagick autoscaling
+    enabled: false
+    # -- minimum number of replicas to spin up within the replicaset
+    minReplicas: 1
+    # -- maximum number of replicas to spin up within the replicaset
+    maxReplicas: 3
+    behavior:
+      scaleDown:
+        # -- list of available policies for scaling down
+        # scale down either by one pod or by destroying 25% of the pods (whichever is smaller)
+        policies:
+          - periodSeconds: 60
+            type: Pods
+            value: 1
+        stabilizationWindowSeconds: 60
+      scaleUp:
+        # -- list of available policies for scaling up
+        # scale up either by one pod or by adding 50% more pods (whichever is bigger)
+        policies:
+          - periodSeconds: 60
+            type: Percent
+            value: 50
+          - periodSeconds: 60
+            type: Pods
+            value: 2
+        stabilizationWindowSeconds: 30
+    # -- a list of resource the HPA controller should monitor
+    # For more details check
+    # https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-resource-metrics
+    metrics:
+      - resource:
+          name: cpu
+          target:
+            averageUtilization: 75
+            type: Utilization
+        type: Resource
+libreoffice:
+  enabled: true
+  replicaCount: 2
+  nodeSelector: {}
+  tolerations: []
+  # -- Pod affinity, passed thru tpl function
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        # -- Prefer to schedule on different zones
+        - weight: 10
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - >-
+                      {{ template "alfresco-transform-service.libreoffice.name" . }}
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - "{{ .Release.Name }}"
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - "{{ $.Chart.Name }}"
+            topologyKey: topology.kubernetes.io/zone
+        # -- Prefer to schedule on different nodes
+        - weight: 5
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - >-
+                      {{ template "alfresco-transform-service.libreoffice.name" . }}
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - "{{ .Release.Name }}"
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - "{{ $.Chart.Name }}"
+            topologyKey: kubernetes.io/hostname
+  podAnnotations: {}
+  podLabels: {}
+  image:
+    repository: quay.io/alfresco/alfresco-libreoffice
+    tag: 5.3.0
+    pullPolicy: IfNotPresent
+    internalPort: 8090
+  service:
+    name: libreoffice
+    type: ClusterIP
+    externalPort: 80
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "500Mi"
+    limits:
+      cpu: "4"
+      memory: "4Gi"
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 33003
+  environment:
+    JAVA_OPTS: >-
+      -XX:MinRAMPercentage=50
+      -XX:MaxRAMPercentage=80
+  readinessProbe:
+    path: /ready
+    initialDelaySeconds: 20
+    periodSeconds: 30
+    timeoutSeconds: 10
+  livenessProbe:
+    path: /live
+    initialDelaySeconds: 10
+    periodSeconds: 20
+    timeoutSeconds: 10
+    livenessPercent: 250
+    livenessTransformPeriodSeconds: 600
+    maxTransforms: 99999
+    maxTransformSeconds: 1800
+  volumes: []
+  volumeMounts: []
+  autoscaling:
+    # -- Toggle libreoffice autoscaling
+    enabled: false
+    # -- minimum number of replicas to spin up within the replicaset
+    minReplicas: 1
+    # -- maximum number of replicas to spin up within the replicaset
+    maxReplicas: 3
+    behavior:
+      scaleDown:
+        # -- list of available policies for scaling down
+        # scale down either by one pod or by destroying 25% of the pods (whichever is smaller)
+        policies:
+          - periodSeconds: 60
+            type: Pods
+            value: 1
+        stabilizationWindowSeconds: 60
+      scaleUp:
+        # -- list of available policies for scaling up
+        # scale up either by one pod or by adding 50% more pods (whichever is bigger)
+        policies:
+          - periodSeconds: 60
+            type: Percent
+            value: 50
+          - periodSeconds: 60
+            type: Pods
+            value: 2
+        stabilizationWindowSeconds: 30
+    # -- a list of resource the HPA controller should monitor
+    # For more details check
+    # https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-resource-metrics
+    metrics:
+      - resource:
+          name: cpu
+          target:
+            averageUtilization: 75
+            type: Utilization
+        type: Resource
+tika:
+  enabled: true
+  replicaCount: 2
+  nodeSelector: {}
+  tolerations: []
+  # -- Pod affinity, passed thru tpl function
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        # -- Prefer to schedule on different zones
+        - weight: 10
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - >-
+                      {{ template "alfresco-transform-service.tika.name" . }}
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - "{{ .Release.Name }}"
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - "{{ $.Chart.Name }}"
+            topologyKey: topology.kubernetes.io/zone
+        # -- Prefer to schedule on different nodes
+        - weight: 5
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - >-
+                      {{ template "alfresco-transform-service.tika.name" . }}
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - "{{ .Release.Name }}"
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - "{{ $.Chart.Name }}"
+            topologyKey: kubernetes.io/hostname
+  podAnnotations: {}
+  podLabels: {}
+  image:
+    repository: quay.io/alfresco/alfresco-tika
+    tag: 5.3.0
+    pullPolicy: IfNotPresent
+    internalPort: 8090
+  service:
+    name: tika
+    type: ClusterIP
+    externalPort: 80
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 33004
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "600Mi"
+    limits:
+      cpu: "4"
+      memory: "4Gi"
+  environment:
+    JAVA_OPTS: >-
+      -XX:MinRAMPercentage=50
+      -XX:MaxRAMPercentage=80
+  readinessProbe:
+    path: /ready
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 10
+  livenessProbe:
+    path: /live
+    initialDelaySeconds: 30
+    periodSeconds: 20
+    timeoutSeconds: 10
+    livenessPercent: 400
+    livenessTransformPeriodSeconds: 600
+    maxTransforms: 10000
+    maxTransformSeconds: 1800
+  volumes: []
+  volumeMounts: []
+  autoscaling:
+    # -- Toggle tika autoscaling
+    enabled: false
+    # -- minimum number of replicas to spin up within the replicaset
+    minReplicas: 1
+    # -- maximum number of replicas to spin up within the replicaset
+    maxReplicas: 3
+    behavior:
+      scaleDown:
+        # -- list of available policies for scaling down
+        # scale down either by one pod or by destroying 25% of the pods (whichever is smaller)
+        policies:
+          - periodSeconds: 60
+            type: Pods
+            value: 1
+        stabilizationWindowSeconds: 60
+      scaleUp:
+        # -- list of available policies for scaling up
+        # scale up either by one pod or by adding 50% more pods (whichever is bigger)
+        policies:
+          - periodSeconds: 60
+            type: Percent
+            value: 50
+          - periodSeconds: 60
+            type: Pods
+            value: 2
+        stabilizationWindowSeconds: 30
+    # -- a list of resource the HPA controller should monitor
+    # For more details check
+    # https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-resource-metrics
+    metrics:
+      - resource:
+          name: cpu
+          target:
+            averageUtilization: 75
+            type: Utilization
+        type: Resource
+transformmisc:
+  enabled: true
+  replicaCount: 2
+  nodeSelector: {}
+  tolerations: []
+  # -- Pod affinity, passed thru tpl function
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        # -- Prefer to schedule on different zones
+        - weight: 10
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - >-
+                      {{ template "alfresco-transform-service.transform-misc.name" . }}
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - "{{ .Release.Name }}"
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - "{{ $.Chart.Name }}"
+            topologyKey: topology.kubernetes.io/zone
+        # -- Prefer to schedule on different nodes
+        - weight: 5
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - >-
+                      {{ template "alfresco-transform-service.transform-misc.name" . }}
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                    - "{{ .Release.Name }}"
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - "{{ $.Chart.Name }}"
+            topologyKey: kubernetes.io/hostname
+  podAnnotations: {}
+  podLabels: {}
+  image:
+    repository: quay.io/alfresco/alfresco-transform-misc
+    tag: 5.3.0
+    pullPolicy: IfNotPresent
+    internalPort: 8090
+  service:
+    name: transformmisc
+    type: ClusterIP
+    externalPort: 80
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 33006
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "250Mi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+  environment:
+    JAVA_OPTS: >-
+      -XX:MinRAMPercentage=50
+      -XX:MaxRAMPercentage=80
+  readinessProbe:
+    path: /ready
+    initialDelaySeconds: 20
+    periodSeconds: 30
+    timeoutSeconds: 10
+  livenessProbe:
+    path: /live
+    initialDelaySeconds: 10
+    periodSeconds: 20
+    timeoutSeconds: 10
+    livenessPercent: 400
+    livenessTransformPeriodSeconds: 600
+    maxTransforms: 10000
+    maxTransformSeconds: 1800
+  volumes: []
+  volumeMounts: []
+  autoscaling:
+    # -- Toggle transformmisc autoscaling
+    enabled: false
+    # -- minimum number of replicas to spin up within the replicaset
+    minReplicas: 1
+    # -- maximum number of replicas to spin up within the replicaset
+    maxReplicas: 3
+    behavior:
+      scaleDown:
+        # -- list of available policies for scaling down
+        # scale down either by one pod or by destroying 25% of the pods (whichever is smaller)
+        policies:
+          - periodSeconds: 60
+            type: Pods
+            value: 1
+        stabilizationWindowSeconds: 60
+      scaleUp:
+        # -- list of available policies for scaling up
+        # scale up either by one pod or by adding 50% more pods (whichever is bigger)
+        policies:
+          - periodSeconds: 60
+            type: Percent
+            value: 50
+          - periodSeconds: 60
+            type: Pods
+            value: 2
+        stabilizationWindowSeconds: 30
+    # -- a list of resource the HPA controller should monitor
+    # For more details check
+    # https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#support-for-resource-metrics
+    metrics:
+      - resource:
+          name: cpu
+          target:
+            averageUtilization: 75
+            type: Utilization
+        type: Resource
+filestore:
+  enabled: true
+  replicaCount: 1
+  nodeSelector: {}
+  tolerations: []
+  # -- Pod affinity, passed thru tpl function
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      # -- Prefer to schedule on different zones
+      - weight: 10
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - >-
+                    {{ template "alfresco-transform-service.filestore.name" . }}
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - "{{ .Release.Name }}"
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - "{{ $.Chart.Name }}"
+          topologyKey: topology.kubernetes.io/zone
+      # -- Prefer to schedule on different nodes
+      - weight: 5
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - >-
+                    {{ template "alfresco-transform-service.filestore.name" . }}
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - "{{ .Release.Name }}"
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - "{{ $.Chart.Name }}"
+          topologyKey: kubernetes.io/hostname
+  podAnnotations: {}
+  podLabels: {}
+  image:
+    repository: quay.io/alfresco/alfresco-shared-file-store
+    tag: 4.3.0
+    pullPolicy: IfNotPresent
+    internalPort: 8099
+  initContainer:
+    image:
+      repository: busybox
+      tag: "1.37"
+      pullPolicy: IfNotPresent
+    resources:
+      limits:
+        cpu: "0.50"
+        memory: "20Mi"
+  service:
+    name: filestore
+    type: ClusterIP
+    externalPort: 80
+  podSecurityContext:
+    runAsUser: 33030
+    runAsGroup: 1000
+    fsGroup: 1000
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "250Mi"
+    limits:
+      cpu: "2"
+      memory: "1Gi"
+  environment:
+    scheduler.content.age.millis: "86400000"
+    scheduler.cleanup.interval: "86400000"
+    JAVA_OPTS: >-
+      -XX:MinRAMPercentage=50
+      -XX:MaxRAMPercentage=80
+  readinessProbe:
+    path: /ready
+    initialDelaySeconds: 20
+    periodSeconds: 60
+    timeoutSeconds: 10
+  livenessProbe:
+    path: /live
+    initialDelaySeconds: 10
+    periodSeconds: 20
+    timeoutSeconds: 10
+  persistence:
+    # -- Persist filestore data
+    enabled: false
+    # -- Specify a storageClass for dynamic provisioning
+    accessModes:
+      - ReadWriteOnce
+    # -- Bind PVC based on storageClass (e.g. dynamic provisionning)
+    storageClass: null
+    # -- Use pre-provisioned pv through its claim (e.g. static provisionning)
+    existingClaim: null
+    data:
+      mountPath: "/tmp/Alfresco"
+      subPath: "alfresco-content-services/filestore-data"
+  volumes: []
+  volumeMounts: []
+  strategy:
+    # -- Custom strategy for filestore deployment
+    type: RollingUpdate
+messageBroker:
+  # -- Activemq connection url (e.g. failover:(nio://my-broker:61616)?timeout=3000&jms.useCompression=true)
+  url: null
+  # -- Activemq username
+  user: null
+  # -- Activemq password
+  password: null
+  existingConfigMap:
+    # -- Alternatively, provide message broker URL via an existing ConfigMap
+    name: null
+    keys:
+      url: BROKER_URL
+  existingSecret:
+    # -- Alternatively, provide message broker credentials via an existing Secret
+    name: null
+    keys:
+      user: BROKER_USERNAME
+      password: BROKER_PASSWORD
+global:
+  alfrescoRegistryPullSecrets: quay-registry-secret
+  # -- Global additional labels that can be set at parent/umbrella chart level
+  # These will be merged with chart-level additionalLabels, with chart-level taking precedence
+  additionalLabels: {}
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+tags:
+  # -- Enable dependencies required for CI. Do not enable.
+  ci: false

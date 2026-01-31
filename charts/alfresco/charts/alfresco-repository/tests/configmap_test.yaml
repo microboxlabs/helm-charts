@@ -1,0 +1,156 @@
+---
+suite: test repository default configmap
+templates:
+  - configmap-repository.yaml
+  - configmap-database.yaml
+  - configmap-mq.yaml
+values: &test_values
+  - values/test_values.yaml
+tests:
+  - it: should have some default properties
+    template: configmap-repository.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-alfresco-opts
+      - matchRegex:
+          path: data.CATALINA_OPTS
+          pattern: |-
+            (^\s*|[^\s]\s+)-Ddeployment.method=HELM_CHART($|\s)
+      - matchRegex:
+          path: data.CATALINA_OPTS
+          pattern: |-
+            (^\s*|[^\s]\s+)-Ddb.username=\${DATABASE_USERNAME}($|\s)
+      - matchRegex:
+          path: data.CATALINA_OPTS
+          pattern: |-
+            (^\s*|[^\s]\s+)-Ddb.password=\${DATABASE_PASSWORD}($|\s)
+
+  - it: should render environment vars
+    template: configmap-repository.yaml
+    set:
+      environment:
+        SOMEOTHERVAR: somothervalue
+        CATALINA_OPTS: >-
+          -Dserver.allowWrite=false
+          -Dcatalina.base="/opt/tomcat/alternate"
+        JAVA_OPTS: >-
+          -Xmx32G
+    asserts:
+      - matchRegex:
+          path: data.CATALINA_OPTS
+          pattern: |-
+            (^\s*|[^\s]\s+)-Dserver.allowWrite=false($|\s)
+      - matchRegex:
+          path: data.CATALINA_OPTS
+          pattern: |-
+            (^\s*|[^\s]\s+)-Dcatalina.base="/opt/tomcat/alternate"($|\s)
+      - matchRegex:
+          path: data.JAVA_OPTS
+          pattern: |-
+            (^\s*|[^\s]\s+)-Xmx32G($|\s)
+      - equal:
+          path: data.SOMEOTHERVAR
+          value: somothervalue
+
+  - it: should render MySQL properties
+    template: configmap-database.yaml
+    asserts:
+      - equal:
+          path: data.DATABASE_URL
+          value: jdbc:mysql://sandy:secret@myhost1:1111
+      - equal:
+          path: data.DATABASE_DRIVER
+          value: com.mysql.jdbc.Driver
+
+  - it: should render PostgreSQL properties
+    template: configmap-database.yaml
+    set:
+      configuration:
+        db:
+          url: jdbc:postgresql://pghost/alfdb
+    asserts:
+      - equal:
+          path: data.DATABASE_URL
+          value: jdbc:postgresql://pghost/alfdb
+      - equal:
+          path: data.DATABASE_DRIVER
+          value: org.postgresql.Driver
+
+  - it: should render MS SQL server properties
+    template: configmap-database.yaml
+    set:
+      configuration:
+        db:
+          url: sqlserver://sqlserverhost;databaseName=alfdb;lockTimeout=1000;
+    asserts:
+      - equal:
+          path: data.DATABASE_URL
+          value: jdbc:sqlserver://sqlserverhost;databaseName=alfdb;lockTimeout=1000;
+      - equal:
+          path: data.DATABASE_DRIVER
+          value: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  - it: should render Oracle properties
+    template: configmap-database.yaml
+    set:
+      configuration:
+        db:
+          url: jdbc:oracle:thin:@tcp://mydbhost:1521/mydbservice
+    asserts:
+      - equal:
+          path: data.DATABASE_URL
+          value: jdbc:oracle:thin:@tcp://mydbhost:1521/mydbservice
+      - equal:
+          path: data.DATABASE_DRIVER
+          value: oracle.jdbc.OracleDriver
+
+  - it: should render ActiveMQ config as needed
+    template: configmap-mq.yaml
+    asserts:
+      - equal:
+          path: data.BROKER_URL
+          value: failover:(tcp://localhost:61616)
+  - it: should render ActiveMQ minimal config
+    template: configmap-mq.yaml
+    set:
+      configuration:
+        messageBroker:
+          url: ssl://amqs:61617
+    asserts:
+      - equal:
+          path: data.BROKER_URL
+          value: failover:(ssl://amqs:61617)
+  - it: should NOT render configmaps
+    set:
+      configuration:
+        db:
+          existingConfigMap:
+            name: mydbcm
+        messageBroker:
+          existingConfigMap:
+            name: mymqcm
+    asserts:
+      - hasDocuments:
+          count: 0
+        template: configmap-database.yaml
+      - hasDocuments:
+          count: 0
+        template: configmap-mq.yaml
+
+  - it: should render labels for configmaps
+    chart:
+      version: 1.0.0
+      appVersion: 2.0.0
+    set:
+      nameOverride: testName
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            app.kubernetes.io/component: alfresco-repository
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: testName
+            app.kubernetes.io/version: 2.0.0
+            helm.sh/chart: alfresco-repository-1.0.0

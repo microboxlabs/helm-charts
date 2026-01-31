@@ -1,0 +1,205 @@
+---
+suite: test reindexing job manifest
+templates:
+  - reindexing-job.yaml
+tests:
+  - it: should have default env vars
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: REPOSITORY_URL
+            valueFrom:
+              configMapKeyRef:
+                name: RELEASE-NAME-alfresco-search-enterprise-repository
+                key: REPOSITORY_URL
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BROKER_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-alfresco-search-enterprise-mq
+                key: BROKER_USERNAME
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BROKER_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-alfresco-search-enterprise-mq
+                key: BROKER_PASSWORD
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SPRING_DATASOURCE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-alfresco-database
+                key: DATABASE_PASSWORD
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SPRING_DATASOURCE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-alfresco-database
+                key: DATABASE_USERNAME
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SPRING_DATASOURCE_URL
+            valueFrom:
+              configMapKeyRef:
+                name: RELEASE-NAME-alfresco-database
+                key: DATABASE_URL
+
+  - it: should have overridden secrets when existingSecret is set
+    set:
+      messageBroker:
+        existingSecret:
+          name: mqsecret
+          keys:
+            username: MQUSER
+            password: MQPASS
+      reindexing.db:
+        existingSecret:
+          name: my-custom-secret
+          keys:
+            username: CUSTOM_USERNAME_KEY
+            password: CUSTOM_PASSWORD_KEY
+        existingConfigMap:
+          name: my-custom-configmap
+          keys:
+            url: CUSTOM_URL_KEY
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BROKER_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: mqsecret
+                key: MQUSER
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: BROKER_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mqsecret
+                key: MQPASS
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SPRING_DATASOURCE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: my-custom-secret
+                key: CUSTOM_USERNAME_KEY
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SPRING_DATASOURCE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: my-custom-secret
+                key: CUSTOM_PASSWORD_KEY
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SPRING_DATASOURCE_URL
+            valueFrom:
+              configMapKeyRef:
+                name: my-custom-configmap
+                key: CUSTOM_URL_KEY
+
+  - it: should have env vars for elasticsearch credentials
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SPRING_ELASTICSEARCH_REST_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-alfresco-search-enterprise-es
+                key: SEARCH_USERNAME
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SPRING_ELASTICSEARCH_REST_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-alfresco-search-enterprise-es
+                key: SEARCH_PASSWORD
+
+  - it: should not be present when disabled
+    set:
+      reindexing.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render default init container
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: wait-for-repository
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].image
+          pattern: "curlimages/curl:.+"
+      - equal:
+          path: spec.template.spec.initContainers[0].imagePullPolicy
+          value: IfNotPresent
+
+  - it: render the initContainer with given configmap details
+    set:
+      reindexing:
+        repository:
+          existingConfigMap:
+            name: mycm
+            keys:
+              url: REPO_URL
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: REPOSITORY_URL
+            valueFrom:
+              configMapKeyRef:
+                name: mycm
+                key: REPO_URL
+
+  - it: has default hook annotation
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            "helm.sh/hook": "post-install"
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-alfresco-search-enterprise-reindexing
+
+  - it: has changed hook annotation
+    set:
+      reindexing:
+        hookExecution: post-upgrade
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            "helm.sh/hook": "post-upgrade"
+      - matchRegex:
+          path: metadata.name
+          pattern: RELEASE-NAME-alfresco-search-enterprise-reindexing-[a-z0-9]{5}
+
+  - it: has no hook annotation when disabled
+    set:
+      reindexing:
+        hookExecution: false
+    asserts:
+      - notExists:
+          path: metadata.annotations."helm.sh/hook"
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-alfresco-search-enterprise-reindexing

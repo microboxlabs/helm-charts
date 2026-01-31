@@ -1,0 +1,69 @@
+{{- if .Values.libreoffice.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "alfresco-transform-service.libreoffice.fullname" . }}
+  labels:
+    {{- include "alfresco-transform-service.libreoffice.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.libreoffice.autoscaling.enabled }}
+  replicas: {{ .Values.libreoffice.replicaCount }}
+  {{ end }}
+  selector:
+    matchLabels:
+      {{- include "alfresco-transform-service.libreoffice.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      {{- toYaml .Values.global.strategy.rollingUpdate | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- include "alfresco-transform-service.configsums" (dict "Context" $ "Component" "libreoffice") | indent 8 }}
+        {{- with .Values.libreoffice.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "alfresco-transform-service.libreoffice.labels" . | nindent 8 }}
+        {{- with .Values.libreoffice.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "alfresco-common.imagePullSecrets" . | indent 6 }}
+      serviceAccountName: {{ include "alfresco-transform-service.serviceAccountName" . }}
+      {{- include "alfresco-common.component-pod-security-context" .Values.libreoffice | indent 4 }}
+      containers:
+        - name: {{ template "alfresco-transform-service.libreoffice.name" . }}
+          image: "{{ .Values.libreoffice.image.repository }}:{{ .Values.libreoffice.image.tag }}"
+          imagePullPolicy: {{ .Values.libreoffice.image.pullPolicy }}
+          {{- include "component-security-context" .Values.libreoffice | indent 8 }}
+          envFrom:
+            - configMapRef:
+                name: {{ template "alfresco-transform-service.libreoffice.fullname" . }}
+          env:
+            {{- include "alfresco-transform-service.messageBroker.env" $ | nindent 12 }}
+          ports:
+            - containerPort: {{ .Values.libreoffice.image.internalPort }}
+          resources: {{- toYaml .Values.libreoffice.resources | nindent 12 }}
+          {{- with .Values.libreoffice.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{ include "alfresco-transform-service.probes" .Values.libreoffice | nindent 10 }}
+      {{- with .Values.libreoffice.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.libreoffice.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.libreoffice.affinity }}
+      affinity:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.libreoffice.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

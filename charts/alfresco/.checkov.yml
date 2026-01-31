@@ -1,0 +1,17 @@
+framework:
+  - helm
+directory:
+  - charts
+skip-check:
+  - CKV_K8S_15 # "Image Pull Policy should be Always"
+  - CKV_K8S_21 # "The default namespace should not be used"
+  - CKV_K8S_22 # "Use read-only filesystem for containers where possible"
+  - CKV_K8S_31 # "Ensure that the seccomp profile is set to docker/default or runtime/default"
+  - CKV_K8S_35 # "Prefer using secrets as files over secrets as environment variables"
+  - CKV_K8S_38 # "Ensure that Service Account Tokens are only mounted where necessary"
+  - CKV_K8S_43 # "Image should use digest"
+  - CKV2_K8S_6 # "Minimize the admission of pods which lack an associated NetworkPolicy" OPSEXP-2965
+var-file: .checkov-values.yml
+skip-path:
+  - charts/[^/]+/ci/
+  - charts/alfresco-common

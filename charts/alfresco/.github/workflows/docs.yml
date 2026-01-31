@@ -1,0 +1,32 @@
+name: Publish docs
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - .github/workflows/docs.yml
+      - _config.yml
+      - Gemfile*
+      - charts/**/README.md
+      - charts/**/docs/**.md
+  workflow_run:
+    workflows: [Release Charts]
+    types: [completed]
+
+jobs:
+  publish:
+    uses: Alfresco/jekyll-build-tools/.github/workflows/jekyll-publish.yml@14575d759c728bb9f96bacc9b7695b843aec31ea # v0.2.1
+    if: github.event_name == 'pull_request' || github.event.workflow_run.conclusion == 'success'
+    with:
+      working-directory: .
+      publish: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main' }}
+      publish-branch: gh-pages
+      validate-html: true
+      validate-html-args: "--ignore-status-codes 429"

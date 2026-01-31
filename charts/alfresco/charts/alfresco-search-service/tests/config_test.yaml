@@ -1,0 +1,63 @@
+---
+suite: test search configmap
+templates:
+  - config.yaml
+tests:
+  - it: should contains default env vars
+    values: &testvalues
+      - values/test_values.yaml
+    asserts:
+      - equal:
+          path: data.SOLR_ALFRESCO_HOST
+          value: alfresco-search-service
+      - equal:
+          path: data.SOLR_ALFRESCO_PORT
+          value: "80"
+      - equal:
+          path: data.SOLR_ALFRESCO_SECURE_COMMS
+          value: secret
+
+  - it: should contains customized env vars
+    values: *testvalues
+    set:
+      repository:
+        host: somehost
+        port: 8888
+    asserts:
+      - equal:
+          path: data.SOLR_ALFRESCO_HOST
+          value: somehost
+      - equal:
+          path: data.SOLR_ALFRESCO_PORT
+          value: "8888"
+      - equal:
+          path: data.SOLR_ALFRESCO_SECURE_COMMS
+          value: secret
+
+  - it: should not render when existingConfigMap is set
+    values: *testvalues
+    set:
+      repository:
+        existingConfigMap:
+          name: mycm
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render labels for configmaps
+    values: *testvalues
+    chart:
+      version: 1.0.0
+      appVersion: 2.0.0
+    set:
+      nameOverride: testName
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            app.kubernetes.io/component: alfresco-search-service
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: testName
+            app.kubernetes.io/version: 2.0.0
+            helm.sh/chart: alfresco-search-service-1.0.0

@@ -1,0 +1,13 @@
+---
+suite: test T-Router configmap
+templates:
+  - config-transform-router.yaml
+
+tests:
+  - it: should render default config
+    values: &testvalues
+      - values/test_values.yaml
+    asserts:
+      - notExists:
+          path: data.TRANSFORMER_URL_AWS_AI
+        template: config-transform-router.yaml

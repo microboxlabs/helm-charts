@@ -1,0 +1,17 @@
+{{- if .Values.transformrouter.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "alfresco-transform-service.transform-router.fullname" . }}
+  labels:
+    {{- include "alfresco-transform-service.transform-router.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.transformrouter.service.type }}
+  ports:
+    - port: {{ .Values.transformrouter.service.externalPort }}
+      targetPort: {{ .Values.transformrouter.image.internalPort }}
+      protocol: TCP
+      name: {{ .Values.transformrouter.service.name }}
+  selector:
+    {{- include "alfresco-transform-service.transform-router.selectorLabels" . | nindent 4 }}
+{{- end }}

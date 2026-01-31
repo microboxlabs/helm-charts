@@ -1,0 +1,12 @@
+{{- if not .Values.repository.existingConfigMap.name -}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "alfresco-share.fullname" . }}
+  labels:
+    {{- include "alfresco-share.labels" . | nindent 4 }}
+data:
+  REPO_HOST: {{ .Values.repository.host | quote }}
+  REPO_PORT: {{ .Values.repository.port | quote }}
+{{- end -}}
