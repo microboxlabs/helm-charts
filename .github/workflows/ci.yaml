@@ -24,7 +24,9 @@ jobs:
 
       - name: Add dependency repos
         run: |
+          helm repo add alfresco https://alfresco.github.io/alfresco-helm-charts/
           helm repo add bitnami https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami/
+          helm repo update
 
       - name: Lint custom charts
         run: |
@@ -70,8 +72,10 @@ jobs:
 
       - name: Add dependency repos
         run: |
+          helm repo add alfresco https://alfresco.github.io/alfresco-helm-charts/
           helm repo add bitnami https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami/
           helm repo add self https://microboxlabs.github.io/helm-charts/
+          helm repo update
 
       - name: Release custom charts
         uses: helm/chart-releaser-action@v1.6.0
