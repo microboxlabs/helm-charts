@@ -1,0 +1,19 @@
+apiVersion: v2
+name: miot-calendar
+description: A Helm chart for MIOT Calendar - Calendar booking microservice for resource scheduling
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - calendar
+  - booking
+  - scheduling
+  - quarkus
+  - microservice
+home: https://github.com/microboxlabs/miot-calendar
+sources:
+  - https://github.com/microboxlabs/miot-calendar
+maintainers:
+  - name: MicroboxLabs
+    email: dev@microboxlabs.com
+    url: https://microboxlabs.com

@@ -1,0 +1,304 @@
+# MIOT Calendar Chart
+
+A Helm chart for deploying **MIOT Calendar** - a calendar booking microservice for resource scheduling built with Quarkus.
+
+## Overview
+
+MIOT Calendar provides a robust, database-first calendar solution for planning and scheduling resources. It supports:
+
+- **Multiple calendars** with configurable time zones
+- **Time windows** defining operating hours and slot durations
+- **Slots** with capacity management
+- **Bookings** for generic resources with JSONB data support
+- **Quarkus native** and JVM image variants
+
+## Prerequisites
+
+- Kubernetes 1.19+
+- Helm 3.0+
+- PostgreSQL database (external)
+
+## Installation
+
+### Add the Helm repository
+
+```bash
+helm repo add mbl-charts https://microboxlabs.github.io/helm-charts
+helm repo update
+```
+
+### Install with default configuration
+
+```bash
+helm install miot-calendar mbl-charts/miot-calendar
+```
+
+### Install with custom values
+
+```bash
+helm install miot-calendar mbl-charts/miot-calendar -f values.yaml
+```
+
+## Parameters
+
+### Image Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `image.repository` | Container image repository | `ghcr.io/microboxlabs/miot-calendar` |
+| `image.tag` | Container image tag | `latest-jvm` |
+| `image.pullPolicy` | Image pull policy | `IfNotPresent` |
+| `imagePullSecrets` | Image pull secrets | `[]` |
+
+### Deployment Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `replicaCount` | Number of pod replicas | `1` |
+| `nameOverride` | Override chart name | `""` |
+| `fullnameOverride` | Override full name | `""` |
+| `podAnnotations` | Pod annotations | `{}` |
+| `podLabels` | Pod labels | `{}` |
+| `podSecurityContext` | Pod security context | `{}` |
+| `securityContext` | Container security context | `{}` |
+| `nodeSelector` | Node selector | `{}` |
+| `tolerations` | Tolerations | `[]` |
+| `affinity` | Affinity rules | `{}` |
+
+### Service Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `service.type` | Kubernetes service type | `ClusterIP` |
+| `service.port` | Service port | `8083` |
+
+### Ingress Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `ingress.enabled` | Enable ingress | `false` |
+| `ingress.className` | Ingress class name | `""` |
+| `ingress.annotations` | Ingress annotations | `{}` |
+| `ingress.hosts` | Ingress hosts configuration | See values.yaml |
+| `ingress.tls` | TLS configuration | `[]` |
+
+### Database Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `postgresql.external.enabled` | Use external PostgreSQL | `true` |
+| `postgresql.external.host` | PostgreSQL host | `postgresql` |
+| `postgresql.external.port` | PostgreSQL port | `5432` |
+| `postgresql.external.database` | Database name | `miot_calendar` |
+| `postgresql.external.username` | Database username | `postgres` |
+| `postgresql.external.password` | Database password | `postgres` |
+| `postgresql.external.existingSecret` | Use existing secret for credentials | `""` |
+| `postgresql.external.existingSecretUsernameKey` | Username key in existing secret | `username` |
+| `postgresql.external.existingSecretPasswordKey` | Password key in existing secret | `password` |
+
+### Health Check Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `livenessProbe.httpGet.path` | Liveness probe path | `/q/health/live` |
+| `livenessProbe.initialDelaySeconds` | Initial delay | `10` |
+| `livenessProbe.periodSeconds` | Check period | `10` |
+| `readinessProbe.httpGet.path` | Readiness probe path | `/q/health/ready` |
+| `readinessProbe.initialDelaySeconds` | Initial delay | `5` |
+| `readinessProbe.periodSeconds` | Check period | `10` |
+
+### Resource Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `resources.limits.cpu` | CPU limit | `""` |
+| `resources.limits.memory` | Memory limit | `""` |
+| `resources.requests.cpu` | CPU request | `""` |
+| `resources.requests.memory` | Memory request | `""` |
+
+### Autoscaling Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `autoscaling.enabled` | Enable HPA | `false` |
+| `autoscaling.minReplicas` | Minimum replicas | `1` |
+| `autoscaling.maxReplicas` | Maximum replicas | `10` |
+| `autoscaling.targetCPUUtilizationPercentage` | Target CPU utilization | `80` |
+
+### Metrics Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `metrics.enabled` | Enable metrics | `false` |
+| `metrics.serviceMonitor.enabled` | Enable ServiceMonitor | `false` |
+| `metrics.serviceMonitor.interval` | Scrape interval | `30s` |
+| `metrics.serviceMonitor.labels` | ServiceMonitor labels | `{}` |
+
+## Example Configurations
+
+### Basic Deployment
+
+```yaml
+replicaCount: 2
+
+image:
+  repository: ghcr.io/microboxlabs/miot-calendar
+  tag: "1.0.0-jvm"
+
+postgresql:
+  external:
+    enabled: true
+    host: "postgresql.database.svc.cluster.local"
+    database: "miot_calendar"
+    existingSecret: "postgresql-credentials"
+    existingSecretUsernameKey: "username"
+    existingSecretPasswordKey: "password"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+```
+
+### Using Native Image
+
+```yaml
+image:
+  repository: ghcr.io/microboxlabs/miot-calendar
+  tag: "1.0.0-native"
+
+# Native images have faster startup and lower memory footprint
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+# Native images start much faster
+livenessProbe:
+  initialDelaySeconds: 2
+readinessProbe:
+  initialDelaySeconds: 1
+```
+
+### With Ingress and TLS
+
+```yaml
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  hosts:
+    - host: calendar.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: calendar-tls
+      hosts:
+        - calendar.example.com
+```
+
+### With Autoscaling and Metrics
+
+```yaml
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+    labels:
+      release: prometheus
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+```
+
+### With Custom Environment Variables
+
+```yaml
+env:
+  - name: QUARKUS_LOG_LEVEL
+    value: "DEBUG"
+  - name: QUARKUS_LOG_CATEGORY__COM_MICROBOXLABS_MIOT_CALENDAR__LEVEL
+    value: "TRACE"
+  - name: QUARKUS_FLYWAY_MIGRATE_AT_START
+    value: "true"
+
+envFrom:
+  - secretRef:
+      name: additional-secrets
+  - configMapRef:
+      name: additional-config
+```
+
+## API Endpoints
+
+Once deployed, the following endpoints are available:
+
+| Endpoint | Description |
+|----------|-------------|
+| `/api/calendars` | Calendar management |
+| `/api/calendars/{id}/time-windows` | Time window configuration |
+| `/api/slots` | Slot management |
+| `/api/slots/generate` | Generate slots for date range |
+| `/api/bookings` | Booking management |
+| `/api/planned-services` | Backward-compatible API |
+| `/q/health` | Health check endpoint |
+| `/q/health/live` | Liveness probe |
+| `/q/health/ready` | Readiness probe |
+| `/q/metrics` | Prometheus metrics |
+| `/q/openapi` | OpenAPI specification |
+| `/q/swagger-ui` | Swagger UI |
+
+## Upgrading
+
+### To 0.x
+
+This is the initial release. No upgrade notes.
+
+## Troubleshooting
+
+### Pod fails to start with database connection error
+
+1. Verify the PostgreSQL service is running and accessible
+2. Check the database credentials in the secret
+3. Ensure the database `miot_calendar` exists
+
+```bash
+kubectl logs -l app.kubernetes.io/name=miot-calendar
+```
+
+### Health checks failing
+
+1. Check if Flyway migrations completed successfully
+2. Verify database connectivity
+3. Review application logs for startup errors
+
+```bash
+kubectl exec -it <pod-name> -- curl localhost:8083/q/health
+```
+
+### Metrics not appearing in Prometheus
+
+1. Verify the ServiceMonitor is created: `kubectl get servicemonitor`
+2. Check that the ServiceMonitor labels match your Prometheus selector
+3. Verify the metrics endpoint is accessible: `curl <pod-ip>:8083/q/metrics`

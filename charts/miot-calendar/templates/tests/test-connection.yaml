@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "miot-calendar.fullname" . }}-test-connection"
+  labels:
+    {{- include "miot-calendar.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['--spider', '-q', '{{ include "miot-calendar.fullname" . }}:{{ .Values.service.port }}/q/health/ready']
+  restartPolicy: Never
