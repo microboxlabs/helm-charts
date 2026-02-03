@@ -29,6 +29,7 @@ helm install my-release microboxlabs/<chart-name>
 
 | Chart | Description |
 |-------|-------------|
+| `miot-calendar` | Calendar booking microservice for resource scheduling (Quarkus) |
 | `quarkus-sse` | Quarkus Server-Sent Events application |
 
 ### Alfresco Charts
@@ -71,10 +72,12 @@ git clone https://github.com/microboxlabs/helm-charts.git
 cd helm-charts
 
 # Lint charts
+helm lint charts/miot-calendar
 helm lint charts/quarkus-sse
 helm lint charts/alfresco/charts/*
 
 # Template a chart locally
+helm template my-release charts/miot-calendar
 helm template my-release charts/quarkus-sse
 ```
 
@@ -97,7 +100,8 @@ helm-charts/
 │   └── sync-*.yaml       # Alfresco upstream sync
 ├── charts/
 │   ├── alfresco/         # Alfresco charts (git subtree)
-│   └── quarkus-sse/      # Custom charts
+│   ├── miot-calendar/    # MIOT Calendar microservice
+│   └── quarkus-sse/      # Quarkus SSE application
 └── docs/                 # Nextra documentation site
 ```
 
