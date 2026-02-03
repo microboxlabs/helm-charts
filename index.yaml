@@ -346,6 +346,31 @@ entries:
     urls:
     - https://github.com/microboxlabs/helm-charts/releases/download/elastic-0.3.0/elastic-0.3.0.tgz
     version: 0.3.0
+  miot-calendar:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-02-03T11:06:54.46098062Z"
+    description: A Helm chart for MIOT Calendar - Calendar booking microservice for
+      resource scheduling
+    digest: b0579ef0b57563e4cb03571fc77a3753287cd45de4c74dcf8acc8fd8c46c0f12
+    home: https://github.com/microboxlabs/miot-calendar
+    keywords:
+    - calendar
+    - booking
+    - scheduling
+    - quarkus
+    - microservice
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-calendar
+    sources:
+    - https://github.com/microboxlabs/miot-calendar
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-calendar-0.1.0/miot-calendar-0.1.0.tgz
+    version: 0.1.0
   postgres:
   - apiVersion: v2
     appVersion: "16.6"
@@ -399,4 +424,4 @@ entries:
     urls:
     - quarkus-sse/quarkus-sse-0.1.0.tgz
     version: 0.1.0
-generated: "2026-01-31T02:04:04.604251742Z"
+generated: "2026-02-03T11:06:54.460996359Z"
