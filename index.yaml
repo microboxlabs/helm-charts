@@ -346,6 +346,31 @@ entries:
     urls:
     - https://github.com/microboxlabs/helm-charts/releases/download/elastic-0.3.0/elastic-0.3.0.tgz
     version: 0.3.0
+  miot-app:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-02-04T17:29:10.209362697Z"
+    description: A Helm chart for ModularIoT App - Main Next.js application with authentication
+      and maps
+    digest: ce3eac34208fc180304270f59266f6655979ba0abb2478ea9e0a77c6979215f1
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - application
+    - nextjs
+    - auth
+    - maps
+    - modulariot
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-app
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-app-0.1.0/miot-app-0.1.0.tgz
+    version: 0.1.0
   miot-calendar:
   - apiVersion: v2
     appVersion: 1.0.0
@@ -370,6 +395,93 @@ entries:
     type: application
     urls:
     - https://github.com/microboxlabs/helm-charts/releases/download/miot-calendar-0.1.0/miot-calendar-0.1.0.tgz
+    version: 0.1.0
+  miot-docs:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-02-04T17:29:10.432184864Z"
+    description: A Helm chart for ModularIoT Documentation - Next.js/Nextra based
+      documentation site
+    digest: 598a21f7e33c2441dd38af431d4f352dcb9fea02a05cc9628a2dbf72d26484c8
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - documentation
+    - docs
+    - nextra
+    - nextjs
+    - modulariot
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-docs
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-docs-0.1.0/miot-docs-0.1.0.tgz
+    version: 0.1.0
+  miot-web-site:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-02-04T17:29:10.606024993Z"
+    description: A Helm chart for ModularIoT Website - Next.js marketing and landing
+      pages
+    digest: 3c6dcb714f54959e09694ad2d56dfb1def5ecf07baa1a12614790c882a1a16dd
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - website
+    - marketing
+    - landing
+    - nextjs
+    - modulariot
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-web-site
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-web-site-0.1.0/miot-web-site-0.1.0.tgz
+    version: 0.1.0
+  modulariot:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-02-04T17:29:10.797171592Z"
+    dependencies:
+    - condition: miot-docs.enabled
+      name: miot-docs
+      repository: file://../miot-docs
+      version: 0.1.0
+    - condition: miot-web-site.enabled
+      name: miot-web-site
+      repository: file://../miot-web-site
+      version: 0.1.0
+    - condition: miot-app.enabled
+      name: miot-app
+      repository: file://../miot-app
+      version: 0.1.0
+    description: An umbrella Helm chart for ModularIoT platform - includes docs, website,
+      and main app
+    digest: 0361cc7f6e2dae5b9f2824c408f82c17552709b3bdff73c789d7c9b50623863e
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - modulariot
+    - iot
+    - platform
+    - umbrella
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: modulariot
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/modulariot-0.1.0/modulariot-0.1.0.tgz
     version: 0.1.0
   postgres:
   - apiVersion: v2
@@ -424,4 +536,4 @@ entries:
     urls:
     - quarkus-sse/quarkus-sse-0.1.0.tgz
     version: 0.1.0
-generated: "2026-02-03T11:06:54.460996359Z"
+generated: "2026-02-04T17:29:10.797205505Z"
