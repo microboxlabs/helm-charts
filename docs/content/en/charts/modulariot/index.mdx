@@ -1,0 +1,206 @@
+# ModularIoT Umbrella Chart
+
+The `modulariot` umbrella chart deploys the complete ModularIoT platform with all frontend components in a single release.
+
+## Overview
+
+The umbrella chart includes three sub-charts:
+
+| Component | Description |
+|-----------|-------------|
+| [miot-app](/charts/modulariot/miot-app) | Main Next.js application with authentication and IoT features |
+| [miot-docs](/charts/modulariot/miot-docs) | Documentation site built with Nextra |
+| [miot-web-site](/charts/modulariot/miot-web-site) | Marketing website |
+
+Each component can be enabled or disabled independently.
+
+## Prerequisites
+
+- Kubernetes 1.19+
+- Helm 3.0+
+- Ingress controller (optional, for external access)
+
+## Installation
+
+### Add the Helm repository
+
+```bash
+helm repo add microboxlabs https://microboxlabs.github.io/helm-charts
+helm repo update
+```
+
+### Install with all components
+
+```bash
+helm install modulariot microboxlabs/modulariot \
+  --namespace modulariot \
+  --create-namespace
+```
+
+### Install with specific components
+
+```bash
+helm install modulariot microboxlabs/modulariot \
+  --namespace modulariot \
+  --set miot-docs.enabled=false \
+  --set miot-web-site.enabled=false
+```
+
+## Parameters
+
+### Global Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `global.imagePullSecrets` | Image pull secrets for all charts | `[]` |
+
+### Component Enable/Disable
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `miot-app.enabled` | Deploy main application | `true` |
+| `miot-docs.enabled` | Deploy documentation | `true` |
+| `miot-web-site.enabled` | Deploy website | `true` |
+
+### Sub-chart Configuration
+
+Each sub-chart accepts its own parameters prefixed with the chart name:
+
+```yaml
+miot-app:
+  replicaCount: 2
+  ingress:
+    enabled: true
+
+miot-docs:
+  replicaCount: 1
+
+miot-web-site:
+  enabled: false
+```
+
+See individual chart documentation for all available parameters:
+- [miot-app parameters](/charts/modulariot/miot-app#parameters)
+- [miot-docs parameters](/charts/modulariot/miot-docs#parameters)
+- [miot-web-site parameters](/charts/modulariot/miot-web-site#parameters)
+
+## Example Configurations
+
+### Development
+
+```yaml
+global:
+  imagePullSecrets: []
+
+miot-app:
+  enabled: true
+  replicaCount: 1
+  auth:
+    secret: "dev-secret-change-me"
+
+miot-docs:
+  enabled: true
+  replicaCount: 1
+
+miot-web-site:
+  enabled: true
+  replicaCount: 1
+```
+
+### Production
+
+```yaml
+global:
+  imagePullSecrets:
+    - name: ghcr-credentials
+
+miot-app:
+  enabled: true
+  replicaCount: 3
+  image:
+    tag: "v1.0.0"
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: app.modulariot.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: app-tls
+        hosts:
+          - app.modulariot.com
+  auth:
+    existingSecret: miot-auth-prod
+
+miot-docs:
+  enabled: true
+  replicaCount: 2
+  image:
+    tag: "v1.0.0"
+  ingress:
+    enabled: true
+    className: nginx
+    hosts:
+      - host: docs.modulariot.com
+        paths:
+          - path: /
+            pathType: Prefix
+
+miot-web-site:
+  enabled: true
+  replicaCount: 2
+  image:
+    tag: "v1.0.0"
+  ingress:
+    enabled: true
+    className: nginx
+    hosts:
+      - host: www.modulariot.com
+        paths:
+          - path: /
+            pathType: Prefix
+```
+
+## Accessing Components
+
+After deployment, access each component via port-forward:
+
+```bash
+# Main application
+kubectl port-forward svc/modulariot-miot-app 3050:3000 -n modulariot
+
+# Documentation
+kubectl port-forward svc/modulariot-miot-docs 3001:3000 -n modulariot
+
+# Website
+kubectl port-forward svc/modulariot-miot-web-site 3040:3000 -n modulariot
+```
+
+## Upgrading
+
+```bash
+helm upgrade modulariot microboxlabs/modulariot \
+  --namespace modulariot \
+  -f values.yaml
+```
+
+## Uninstalling
+
+```bash
+helm uninstall modulariot -n modulariot
+```
