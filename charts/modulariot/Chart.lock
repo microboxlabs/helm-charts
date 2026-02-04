@@ -1,0 +1,12 @@
+dependencies:
+- name: miot-docs
+  repository: file://../miot-docs
+  version: 0.1.0
+- name: miot-web-site
+  repository: file://../miot-web-site
+  version: 0.1.0
+- name: miot-app
+  repository: file://../miot-app
+  version: 0.1.0
+digest: sha256:3fbaace9802c0a772f6abc9d8d2c248eb95dad01863a13da848911480e576faf
+generated: "2026-02-04T14:16:07.842633-03:00"

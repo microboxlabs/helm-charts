@@ -1,0 +1,19 @@
+apiVersion: v2
+name: miot-docs
+description: A Helm chart for ModularIoT Documentation - Next.js/Nextra based documentation site
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - documentation
+  - docs
+  - nextra
+  - nextjs
+  - modulariot
+home: https://github.com/microboxlabs/modulariot
+sources:
+  - https://github.com/microboxlabs/modulariot
+maintainers:
+  - name: MicroboxLabs
+    email: dev@microboxlabs.com
+    url: https://microboxlabs.com

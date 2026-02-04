@@ -1,0 +1,61 @@
+# Default values for ModularIoT umbrella chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Global values that apply to all sub-charts
+global:
+  # Image pull secrets shared across all apps
+  imagePullSecrets: []
+  # Common labels applied to all resources
+  labels: {}
+
+# ModularIoT Documentation
+miot-docs:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/microboxlabs/miot-docs
+    tag: ""
+  ingress:
+    enabled: false
+    hosts:
+      - host: docs.modulariot.local
+        paths:
+          - path: /
+            pathType: Prefix
+
+# ModularIoT Website
+miot-web-site:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/microboxlabs/miot-web-site
+    tag: ""
+  ingress:
+    enabled: false
+    hosts:
+      - host: www.modulariot.local
+        paths:
+          - path: /
+            pathType: Prefix
+
+# ModularIoT Main App
+miot-app:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/microboxlabs/miot-app
+    tag: ""
+  ingress:
+    enabled: false
+    hosts:
+      - host: app.modulariot.local
+        paths:
+          - path: /
+            pathType: Prefix
+  auth:
+    secret: ""
+    existingSecret: ""
+    providers:
+      google:
+        enabled: false

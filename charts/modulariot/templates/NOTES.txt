@@ -1,0 +1,56 @@
+ModularIoT Platform has been deployed!
+
+Enabled components:
+{{- if index .Values "miot-docs" "enabled" }}
+  - Documentation (miot-docs)
+{{- end }}
+{{- if index .Values "miot-web-site" "enabled" }}
+  - Website (miot-web-site)
+{{- end }}
+{{- if index .Values "miot-app" "enabled" }}
+  - Main Application (miot-app)
+{{- end }}
+
+1. Get the application URLs:
+
+{{- if and (index .Values "miot-docs" "enabled") (index .Values "miot-docs" "ingress" "enabled") }}
+   Documentation:
+{{- range $host := (index .Values "miot-docs" "ingress" "hosts") }}
+     http{{ if (index $.Values "miot-docs" "ingress" "tls") }}s{{ end }}://{{ $host.host }}
+{{- end }}
+{{- else if index .Values "miot-docs" "enabled" }}
+   Documentation (port-forward):
+     kubectl port-forward svc/{{ .Release.Name }}-miot-docs 3001:3000 -n {{ .Release.Namespace }}
+     Visit: http://localhost:3001
+{{- end }}
+
+{{- if and (index .Values "miot-web-site" "enabled") (index .Values "miot-web-site" "ingress" "enabled") }}
+   Website:
+{{- range $host := (index .Values "miot-web-site" "ingress" "hosts") }}
+     http{{ if (index $.Values "miot-web-site" "ingress" "tls") }}s{{ end }}://{{ $host.host }}
+{{- end }}
+{{- else if index .Values "miot-web-site" "enabled" }}
+   Website (port-forward):
+     kubectl port-forward svc/{{ .Release.Name }}-miot-web-site 3040:3000 -n {{ .Release.Namespace }}
+     Visit: http://localhost:3040
+{{- end }}
+
+{{- if and (index .Values "miot-app" "enabled") (index .Values "miot-app" "ingress" "enabled") }}
+   Application:
+{{- range $host := (index .Values "miot-app" "ingress" "hosts") }}
+     http{{ if (index $.Values "miot-app" "ingress" "tls") }}s{{ end }}://{{ $host.host }}
+{{- end }}
+{{- else if index .Values "miot-app" "enabled" }}
+   Application (port-forward):
+     kubectl port-forward svc/{{ .Release.Name }}-miot-app 3050:3000 -n {{ .Release.Namespace }}
+     Visit: http://localhost:3050
+{{- end }}
+
+2. Verify all pods are running:
+   kubectl get pods -n {{ .Release.Namespace }} -l "app.kubernetes.io/instance={{ .Release.Name }}"
+
+3. For production deployment, ensure you have configured:
+   - Ingress with TLS certificates
+   - Auth secrets for miot-app
+   - Appropriate resource limits
+   - Horizontal Pod Autoscaling (if needed)
