@@ -47,25 +47,27 @@ jobs:
         run: |
           BRANCH="sync/alfresco-upstream-$(date +%Y%m%d)"
           git checkout -b "$BRANCH"
-          
+
           # Attempt subtree pull
           if git subtree pull --prefix=charts/alfresco alfresco-upstream main --squash -m "chore: sync alfresco-helm-charts upstream"; then
             git push origin "$BRANCH"
-            
+
+            # Build PR body
+            {
+              echo "Automated sync from [alfresco-helm-charts](https://github.com/Alfresco/alfresco-helm-charts)"
+              echo ""
+              echo "## Recent changes from upstream (up to 20 commits)"
+              echo '```'
+              head -20 /tmp/new_commits.txt
+              echo '```'
+              echo ""
+              echo "Please review the changes and merge when ready."
+            } > /tmp/pr_body.md
+
             # Create PR
             gh pr create \
               --title "chore: Sync Alfresco Helm Charts upstream" \
-              --body "$(cat <<EOF
-Automated sync from [alfresco-helm-charts](https://github.com/Alfresco/alfresco-helm-charts)
-
-## Recent changes from upstream (up to 20 commits)
-\`\`\`
-$(head -20 /tmp/new_commits.txt)
-\`\`\`
-
-Please review the changes and merge when ready.
-EOF
-)" \
+              --body-file /tmp/pr_body.md \
               --base trunk \
               --head "$BRANCH"
           else
