@@ -25,7 +25,16 @@ helm install my-release microboxlabs/<chart-name>
 
 ## Available Charts
 
-### Custom Charts
+### ModularIoT Platform Charts
+
+| Chart | Description |
+|-------|-------------|
+| `modulariot` | Umbrella chart - deploys all ModularIoT components together |
+| `miot-app` | Main ModularIoT application (Next.js with auth & maps) |
+| `miot-docs` | ModularIoT documentation site (Next.js/Nextra) |
+| `miot-web-site` | ModularIoT marketing website (Next.js) |
+
+### Custom Microservice Charts
 
 | Chart | Description |
 |-------|-------------|
@@ -72,13 +81,16 @@ git clone https://github.com/microboxlabs/helm-charts.git
 cd helm-charts
 
 # Lint charts
+helm lint charts/modulariot
+helm lint charts/miot-app
+helm lint charts/miot-docs
+helm lint charts/miot-web-site
 helm lint charts/miot-calendar
 helm lint charts/quarkus-sse
-helm lint charts/alfresco/charts/*
 
 # Template a chart locally
-helm template my-release charts/miot-calendar
-helm template my-release charts/quarkus-sse
+helm template my-release charts/modulariot
+helm template my-release charts/miot-app
 ```
 
 ### Documentation Site
@@ -100,6 +112,10 @@ helm-charts/
 │   └── sync-*.yaml       # Alfresco upstream sync
 ├── charts/
 │   ├── alfresco/         # Alfresco charts (git subtree)
+│   ├── modulariot/       # ModularIoT umbrella chart
+│   ├── miot-app/         # ModularIoT main application
+│   ├── miot-docs/        # ModularIoT documentation
+│   ├── miot-web-site/    # ModularIoT website
 │   ├── miot-calendar/    # MIOT Calendar microservice
 │   └── quarkus-sse/      # Quarkus SSE application
 └── docs/                 # Nextra documentation site
