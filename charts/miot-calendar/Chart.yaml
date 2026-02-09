@@ -3,7 +3,7 @@ name: miot-calendar
 description: A Helm chart for MIOT Calendar - Calendar booking microservice for resource scheduling
 type: application
 version: 0.1.0
-appVersion: "1.0.0"
+appVersion: "0.1.0"
 keywords:
   - calendar
   - booking

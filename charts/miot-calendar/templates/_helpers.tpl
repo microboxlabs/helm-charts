@@ -65,9 +65,9 @@ Create the name of the service account to use
 Create the database URL
 */}}
 {{- define "miot-calendar.databaseUrl" -}}
-{{- if .Values.postgresql.external.enabled }}
+{{- if .Values.postgresql.external.enabled -}}
 jdbc:postgresql://{{ .Values.postgresql.external.host }}:{{ .Values.postgresql.external.port }}/{{ .Values.postgresql.external.database }}
-{{- end }}
+{{- end -}}
 {{- end }}
 
 {{/*
@@ -78,6 +78,13 @@ Get the database username
 {{- else }}
 {{- .Values.postgresql.external.username }}
 {{- end }}
+{{- end }}
+
+{{/*
+Get the database schema
+*/}}
+{{- define "miot-calendar.databaseSchema" -}}
+{{- .Values.postgresql.external.schema | default "public" }}
 {{- end }}
 
 {{/*

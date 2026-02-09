@@ -60,6 +60,15 @@ spec:
                   name: {{ include "miot-calendar.databaseSecretName" . }}
                   key: {{ .Values.postgresql.external.existingSecretPasswordKey | default "password" }}
             {{- end }}
+            # Flyway and Hibernate schema configuration
+            {{- if .Values.postgresql.external.schema }}
+            - name: QUARKUS_FLYWAY_SCHEMAS
+              value: {{ include "miot-calendar.databaseSchema" . | quote }}
+            - name: QUARKUS_FLYWAY_DEFAULT_SCHEMA
+              value: {{ include "miot-calendar.databaseSchema" . | quote }}
+            - name: QUARKUS_HIBERNATE_ORM_DATABASE_DEFAULT_SCHEMA
+              value: {{ include "miot-calendar.databaseSchema" . | quote }}
+            {{- end }}
             # Additional environment variables
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}

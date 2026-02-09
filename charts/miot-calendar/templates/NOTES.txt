@@ -24,9 +24,9 @@
 {{- end }}
 
 2. API Endpoints:
-   - Calendars:     /api/calendars
-   - Slots:         /api/slots
-   - Bookings:      /api/bookings
+   - Calendars:     /api/v1/miot-calendar/calendars
+   - Slots:         /api/v1/miot-calendar/slots
+   - Bookings:      /api/v1/miot-calendar/bookings
    - Health:        /q/health
    - Metrics:       /q/metrics
    - OpenAPI:       /q/openapi

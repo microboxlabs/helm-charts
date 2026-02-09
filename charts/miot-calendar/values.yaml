@@ -110,6 +110,8 @@ postgresql:
     username: "postgres"
     password: "postgres"
     # Use existing secret for credentials (takes precedence over username/password)
+    # PostgreSQL schema for Flyway migrations and Hibernate ORM
+    schema: "miot_calendar"
     existingSecret: ""
     existingSecretUsernameKey: "username"
     existingSecretPasswordKey: "password"
@@ -120,6 +122,8 @@ env: []
   #   value: "DEBUG"
   # - name: QUARKUS_FLYWAY_MIGRATE_AT_START
   #   value: "true"
+  # - name: QUARKUS_FLYWAY_SCHEMAS
+  #   value: "miot_calendar"
 
 # Environment variables from secrets/configmaps
 envFrom: []
