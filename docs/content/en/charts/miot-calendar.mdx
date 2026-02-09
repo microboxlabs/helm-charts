@@ -95,6 +95,7 @@ helm install miot-calendar mbl-charts/miot-calendar -f values.yaml
 | `postgresql.external.existingSecret` | Use existing secret for credentials | `""` |
 | `postgresql.external.existingSecretUsernameKey` | Username key in existing secret | `username` |
 | `postgresql.external.existingSecretPasswordKey` | Password key in existing secret | `password` |
+| `postgresql.external.schema` | PostgreSQL schema for Flyway and Hibernate | `miot_calendar` |
 
 ### Health Check Parameters
 
@@ -143,13 +144,14 @@ replicaCount: 2
 
 image:
   repository: ghcr.io/microboxlabs/miot-calendar
-  tag: "1.0.0-jvm"
+  tag: "0.1.0-jvm"
 
 postgresql:
   external:
     enabled: true
     host: "postgresql.database.svc.cluster.local"
     database: "miot_calendar"
+    schema: "miot_calendar"
     existingSecret: "postgresql-credentials"
     existingSecretUsernameKey: "username"
     existingSecretPasswordKey: "password"
@@ -168,7 +170,7 @@ resources:
 ```yaml
 image:
   repository: ghcr.io/microboxlabs/miot-calendar
-  tag: "1.0.0-native"
+  tag: "0.1.0-native"
 
 # Native images have faster startup and lower memory footprint
 resources:
@@ -256,12 +258,11 @@ Once deployed, the following endpoints are available:
 
 | Endpoint | Description |
 |----------|-------------|
-| `/api/calendars` | Calendar management |
-| `/api/calendars/{id}/time-windows` | Time window configuration |
-| `/api/slots` | Slot management |
-| `/api/slots/generate` | Generate slots for date range |
-| `/api/bookings` | Booking management |
-| `/api/planned-services` | Backward-compatible API |
+| `/api/v1/miot-calendar/calendars` | Calendar management |
+| `/api/v1/miot-calendar/calendars/{id}/time-windows` | Time window configuration |
+| `/api/v1/miot-calendar/slots` | Slot management |
+| `/api/v1/miot-calendar/slots/generate` | Generate slots for date range |
+| `/api/v1/miot-calendar/bookings` | Booking management |
 | `/q/health` | Health check endpoint |
 | `/q/health/live` | Liveness probe |
 | `/q/health/ready` | Readiness probe |
