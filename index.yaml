@@ -349,6 +349,30 @@ entries:
   miot-app:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2026-02-10T12:59:05.013901896Z"
+    description: A Helm chart for ModularIoT App - Main Next.js application with authentication
+      and maps
+    digest: bedabcd86068ca655964c0f2c8c8bc9d413957744b74c93add604264daeda15c
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - application
+    - nextjs
+    - auth
+    - maps
+    - modulariot
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-app
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-app-0.2.0/miot-app-0.2.0.tgz
+    version: 0.2.0
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2026-02-04T17:29:10.209362697Z"
     description: A Helm chart for ModularIoT App - Main Next.js application with authentication
       and maps
@@ -536,4 +560,4 @@ entries:
     urls:
     - quarkus-sse/quarkus-sse-0.1.0.tgz
     version: 0.1.0
-generated: "2026-02-04T17:29:10.797205505Z"
+generated: "2026-02-10T12:59:05.285943216Z"
