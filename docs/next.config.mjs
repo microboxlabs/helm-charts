@@ -9,6 +9,9 @@ const withNextra = nextra({
 export default withNextra({
   output: 'export',
   basePath: '/helm-charts',
+  env: {
+    NEXTRA_SHOULD_ADD_LOCALE_TO_LINKS: 'true'
+  },
   images: {
     unoptimized: true
   },

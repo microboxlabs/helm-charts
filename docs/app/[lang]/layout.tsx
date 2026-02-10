@@ -36,6 +36,17 @@ const footer = (
   </Footer>
 )
 
+function prefixRoutes(items: any[], lang: string): any[] {
+  return items.map(item => {
+    if (!item.route) return item
+    return {
+      ...item,
+      route: `/${lang}${item.route}`,
+      ...(item.children && { children: prefixRoutes(item.children, lang) })
+    }
+  })
+}
+
 export default async function RootLayout({ children, params }: { children: React.ReactNode, params: Promise<{ lang: string }> }) {
   const { lang } = await params
   const pageMap = await getPageMap(`/${lang}`)
@@ -52,7 +63,7 @@ export default async function RootLayout({ children, params }: { children: React
       <body>
         <Layout
           navbar={navbar}
-          pageMap={pageMap}
+          pageMap={prefixRoutes(pageMap, lang)}
           docsRepositoryBase="https://github.com/microboxlabs/helm-charts/tree/trunk/docs"
           footer={footer}
           editLink="Edit this page on GitHub"
