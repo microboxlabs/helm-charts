@@ -64,6 +64,28 @@ spec:
                   name: {{ include "miot-app.authSecretName" . }}
                   key: google-client-secret
             {{- end }}
+            {{- if .Values.auth.authProviders }}
+            - name: AUTH_PROVIDERS
+              value: {{ .Values.auth.authProviders | quote }}
+            {{- end }}
+            {{- if .Values.auth.providers.auth0.enabled }}
+            - name: AUTH_AUTH0_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "miot-app.authSecretName" . }}
+                  key: auth0-client-id
+            - name: AUTH_AUTH0_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "miot-app.authSecretName" . }}
+                  key: auth0-client-secret
+            - name: AUTH_AUTH0_ISSUER
+              value: {{ .Values.auth.providers.auth0.issuer | quote }}
+            {{- if .Values.auth.providers.auth0.audience }}
+            - name: AUTH_AUTH0_AUDIENCE
+              value: {{ .Values.auth.providers.auth0.audience | quote }}
+            {{- end }}
+            {{- end }}
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

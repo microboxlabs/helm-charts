@@ -100,13 +100,22 @@ auth:
   # Use existing secret for auth credentials
   existingSecret: ""
   existingSecretKey: "auth-secret"
+  # AUTH_PROVIDERS env var — controls which login buttons appear in the UI
+  # Format: comma-separated provider IDs, * marks primary (highlighted button)
+  # Examples: "microsoft-entra-id*,credentials", "google,github,saml*"
+  authProviders: "microsoft-entra-id*,credentials"
   # Auth providers configuration
   providers:
     google:
       enabled: false
       clientId: ""
       clientSecret: ""
-    # Add more providers as needed
+    auth0:
+      enabled: false
+      clientId: ""      # AUTH_AUTH0_ID
+      clientSecret: ""  # AUTH_AUTH0_SECRET
+      issuer: ""        # AUTH_AUTH0_ISSUER (e.g. https://auth0.microboxlabs.com)
+      audience: ""      # AUTH_AUTH0_AUDIENCE (e.g. https://users.microboxlabs.com/v1)
 
 # Additional environment variables
 env: []
