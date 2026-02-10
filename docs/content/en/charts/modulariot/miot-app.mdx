@@ -6,7 +6,7 @@ A Helm chart for deploying the main ModularIoT application - a Next.js applicati
 
 The miot-app chart deploys:
 - Next.js application with server-side rendering
-- NextAuth.js authentication (Google OAuth, etc.)
+- NextAuth.js authentication (Google OAuth, Auth0, etc.)
 - Map integrations (Mapbox, Google Maps)
 - IoT device management dashboard
 
@@ -77,11 +77,20 @@ helm install modulariot microboxlabs/modulariot \
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `auth.secret` | Auth secret for JWT signing | `""` |
-| `auth.existingSecret` | Use existing secret | `""` |
+| `auth.existingSecret` | Use existing secret for auth secret | `""` |
 | `auth.existingSecretKey` | Key in existing secret | `auth-secret` |
+| `auth.authProviders` | Login buttons shown in UI (comma-separated, `*` = primary) | `microsoft-entra-id*,credentials` |
 | `auth.providers.google.enabled` | Enable Google OAuth | `false` |
 | `auth.providers.google.clientId` | Google client ID | `""` |
 | `auth.providers.google.clientSecret` | Google client secret | `""` |
+| `auth.providers.auth0.enabled` | Enable Auth0 (chart-managed secret) | `false` |
+| `auth.providers.auth0.clientId` | Auth0 client ID | `""` |
+| `auth.providers.auth0.clientSecret` | Auth0 client secret | `""` |
+| `auth.providers.auth0.issuer` | Auth0 issuer URL | `""` |
+| `auth.providers.auth0.audience` | Auth0 audience URL | `""` |
+| `auth.providers.auth0.existingSecret` | Use existing secret for Auth0 credentials | `""` |
+| `auth.providers.auth0.existingSecretClientIdKey` | Key for client ID in existing secret | `auth0-client-id` |
+| `auth.providers.auth0.existingSecretClientSecretKey` | Key for client secret in existing secret | `auth0-client-secret` |
 
 ### Resource Parameters
 
@@ -109,7 +118,7 @@ helm install modulariot microboxlabs/modulariot \
 openssl rand -base64 32
 ```
 
-### Using Values
+### Using Values (Google OAuth)
 
 ```yaml
 auth:
@@ -121,7 +130,24 @@ auth:
       clientSecret: "your-client-secret"
 ```
 
-### Using Existing Secret
+### Using Values (Auth0)
+
+Auth0 acts as an identity broker for social logins (Google, GitHub, etc.). Configure the social connections in your Auth0 dashboard, then provide the Auth0 credentials here:
+
+```yaml
+auth:
+  secret: "your-generated-secret"
+  authProviders: "google,github,credentials"
+  providers:
+    auth0:
+      enabled: true
+      clientId: "your-auth0-client-id"
+      clientSecret: "your-auth0-client-secret"
+      issuer: "https://auth0.microboxlabs.com"
+      audience: "https://users.microboxlabs.com/v1"
+```
+
+### Using Existing Secret (Google)
 
 Create the secret:
 
@@ -141,6 +167,41 @@ auth:
   providers:
     google:
       enabled: true
+```
+
+### Using Existing Secret (Auth0)
+
+Create the secret:
+
+```bash
+kubectl create secret generic miot-auth0 \
+  --from-literal=auth0-client-id="your-auth0-id" \
+  --from-literal=auth0-client-secret="your-auth0-secret" \
+  -n modulariot
+```
+
+Reference it:
+
+```yaml
+auth:
+  authProviders: "google,github,credentials"
+  providers:
+    auth0:
+      existingSecret: miot-auth0
+      issuer: "https://auth0.microboxlabs.com"
+      audience: "https://users.microboxlabs.com/v1"
+```
+
+You can also customize the secret key names if your secret uses different keys:
+
+```yaml
+auth:
+  providers:
+    auth0:
+      existingSecret: my-custom-secret
+      existingSecretClientIdKey: "my-id-key"
+      existingSecretClientSecretKey: "my-secret-key"
+      issuer: "https://auth0.microboxlabs.com"
 ```
 
 ## Example Configurations
