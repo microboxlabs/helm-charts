@@ -1,0 +1,159 @@
+---
+suite: test auth0 deployment env vars
+templates:
+  - deployment.yaml
+tests:
+  - it: should set AUTH_PROVIDERS to default value
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_PROVIDERS
+            value: "microsoft-entra-id*,credentials"
+
+  - it: should set custom AUTH_PROVIDERS value
+    set:
+      auth.authProviders: "google,github,credentials"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_PROVIDERS
+            value: "google,github,credentials"
+
+  - it: should not render auth0 env vars when disabled
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_ID
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_SECRET
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_ISSUER
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_AUDIENCE
+          any: true
+
+  - it: should render auth0 env vars with chart-managed secret
+    set:
+      auth.secret: "test-jwt-secret"
+      auth.providers.auth0.enabled: true
+      auth.providers.auth0.clientId: "test-client-id"
+      auth.providers.auth0.clientSecret: "test-client-secret"
+      auth.providers.auth0.issuer: "https://auth0.example.com"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_ID
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-miot-app-auth
+                key: auth0-client-id
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-miot-app-auth
+                key: auth0-client-secret
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_ISSUER
+            value: "https://auth0.example.com"
+
+  - it: should render AUTH_AUTH0_AUDIENCE when set
+    set:
+      auth.providers.auth0.enabled: true
+      auth.providers.auth0.clientId: "test-client-id"
+      auth.providers.auth0.clientSecret: "test-client-secret"
+      auth.providers.auth0.issuer: "https://auth0.example.com"
+      auth.providers.auth0.audience: "https://api.example.com"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_AUDIENCE
+            value: "https://api.example.com"
+
+  - it: should not render AUTH_AUTH0_AUDIENCE when empty
+    set:
+      auth.providers.auth0.enabled: true
+      auth.providers.auth0.clientId: "test-client-id"
+      auth.providers.auth0.clientSecret: "test-client-secret"
+      auth.providers.auth0.issuer: "https://auth0.example.com"
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_AUDIENCE
+          any: true
+
+  - it: should reference existing secret for auth0 credentials
+    set:
+      auth.providers.auth0.existingSecret: "my-auth0-secret"
+      auth.providers.auth0.issuer: "https://auth0.example.com"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_ID
+            valueFrom:
+              secretKeyRef:
+                name: my-auth0-secret
+                key: auth0-client-id
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: my-auth0-secret
+                key: auth0-client-secret
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_ISSUER
+            value: "https://auth0.example.com"
+
+  - it: should reference existing secret with custom key names
+    set:
+      auth.providers.auth0.existingSecret: "my-custom-secret"
+      auth.providers.auth0.existingSecretClientIdKey: "my-id-key"
+      auth.providers.auth0.existingSecretClientSecretKey: "my-secret-key"
+      auth.providers.auth0.issuer: "https://auth0.example.com"
+      auth.providers.auth0.audience: "https://api.example.com"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_ID
+            valueFrom:
+              secretKeyRef:
+                name: my-custom-secret
+                key: my-id-key
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: my-custom-secret
+                key: my-secret-key
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: AUTH_AUTH0_AUDIENCE
+            value: "https://api.example.com"
