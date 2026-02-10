@@ -116,6 +116,10 @@ auth:
       clientSecret: ""  # AUTH_AUTH0_SECRET
       issuer: ""        # AUTH_AUTH0_ISSUER (e.g. https://auth0.microboxlabs.com)
       audience: ""      # AUTH_AUTH0_AUDIENCE (e.g. https://users.microboxlabs.com/v1)
+      # Use an existing secret for Auth0 credentials instead of chart-managed values
+      existingSecret: ""
+      existingSecretClientIdKey: "auth0-client-id"
+      existingSecretClientSecretKey: "auth0-client-secret"
 
 # Additional environment variables
 env: []

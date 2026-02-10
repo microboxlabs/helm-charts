@@ -68,17 +68,17 @@ spec:
             - name: AUTH_PROVIDERS
               value: {{ .Values.auth.authProviders | quote }}
             {{- end }}
-            {{- if .Values.auth.providers.auth0.enabled }}
+            {{- if or .Values.auth.providers.auth0.enabled .Values.auth.providers.auth0.existingSecret }}
             - name: AUTH_AUTH0_ID
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "miot-app.authSecretName" . }}
-                  key: auth0-client-id
+                  name: {{ .Values.auth.providers.auth0.existingSecret | default (include "miot-app.authSecretName" .) }}
+                  key: {{ .Values.auth.providers.auth0.existingSecretClientIdKey | default "auth0-client-id" }}
             - name: AUTH_AUTH0_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "miot-app.authSecretName" . }}
-                  key: auth0-client-secret
+                  name: {{ .Values.auth.providers.auth0.existingSecret | default (include "miot-app.authSecretName" .) }}
+                  key: {{ .Values.auth.providers.auth0.existingSecretClientSecretKey | default "auth0-client-secret" }}
             - name: AUTH_AUTH0_ISSUER
               value: {{ .Values.auth.providers.auth0.issuer | quote }}
             {{- if .Values.auth.providers.auth0.audience }}
