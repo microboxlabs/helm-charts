@@ -27,7 +27,7 @@ dependencies:
     repository: "file://../miot-web-site"
     condition: miot-web-site.enabled
   - name: miot-app
-    version: "0.1.0"
+    version: "0.2.0"
     repository: "file://../miot-app"
     condition: miot-app.enabled
   - name: miot-modulith
