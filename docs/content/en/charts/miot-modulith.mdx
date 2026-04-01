@@ -334,7 +334,14 @@ kubectl logs -l app.kubernetes.io/name=miot-modulith
 3. Confirm the client ID exists in the Keycloak realm
 
 ```bash
-kubectl exec -it <pod-name> -- curl -s http://localhost:8180/q/health/ready
+# From your local machine (no curl required inside the container)
+kubectl port-forward svc/<release-name>-miot-modulith 8180:8180
+curl -s http://localhost:8180/q/health/ready
+
+# Or exec into the pod using container-bundled tools (no curl needed)
+kubectl exec -it <pod-name> -- /bin/sh -c "wget -qO- http://localhost:8180/q/health/ready"
+# Alternatively with netcat if wget is also absent
+kubectl exec -it <pod-name> -- /bin/sh -c "echo -e 'GET /q/health/ready HTTP/1.0\r\n\r\n' | nc localhost 8180"
 ```
 
 ### Health checks failing
@@ -344,7 +351,12 @@ kubectl exec -it <pod-name> -- curl -s http://localhost:8180/q/health/ready
 3. Review application logs for startup errors
 
 ```bash
-kubectl exec -it <pod-name> -- curl localhost:8180/q/health
+# From your local machine
+kubectl port-forward svc/<release-name>-miot-modulith 8180:8180
+curl -s http://localhost:8180/q/health
+
+# Or exec into the pod using container-bundled tools
+kubectl exec -it <pod-name> -- /bin/sh -c "wget -qO- http://localhost:8180/q/health"
 ```
 
 ### Metrics not appearing in Prometheus
