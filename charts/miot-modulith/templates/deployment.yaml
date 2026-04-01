@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "miot-modulith.fullname" . }}
+  labels:
+    {{- include "miot-modulith.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "miot-modulith.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "miot-modulith.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "miot-modulith.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            # Database — JDBC datasource (Flyway migrations)
+            - name: QUARKUS_DATASOURCE_JDBC_URL
+              value: {{ include "miot-modulith.databaseJdbcUrl" . | quote }}
+            # Database — reactive datasource (Hibernate Reactive Panache)
+            - name: QUARKUS_DATASOURCE_REACTIVE_URL
+              value: {{ include "miot-modulith.databaseReactiveUrl" . | quote }}
+            - name: QUARKUS_DATASOURCE_USERNAME
+              {{- if .Values.postgresql.external.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.external.existingSecret }}
+                  key: {{ .Values.postgresql.external.existingSecretUsernameKey }}
+              {{- else }}
+              value: {{ .Values.postgresql.external.username | quote }}
+              {{- end }}
+            - name: QUARKUS_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "miot-modulith.databaseSecretName" . }}
+                  key: {{ .Values.postgresql.external.existingSecretPasswordKey | default "password" }}
+            # Flyway
+            - name: QUARKUS_FLYWAY_MIGRATE_AT_START
+              value: {{ .Values.flyway.migrateAtStart | quote }}
+            # OIDC / Keycloak
+            - name: QUARKUS_OIDC_AUTH_SERVER_URL
+              value: {{ .Values.oidc.authServerUrl | quote }}
+            - name: QUARKUS_OIDC_CLIENT_ID
+              value: {{ .Values.oidc.clientId | quote }}
+            - name: QUARKUS_OIDC_CREDENTIALS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "miot-modulith.oidcSecretName" . }}
+                  key: {{ .Values.oidc.existingSecretKey | default "client-secret" }}
+            # Modulith component selection
+            - name: MIOT_COMPONENT_FLEET_ENABLED
+              value: {{ .Values.components.fleet.enabled | quote }}
+            - name: MIOT_COMPONENT_DRIVER_ENABLED
+              value: {{ .Values.components.driver.enabled | quote }}
+            # Additional environment variables
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

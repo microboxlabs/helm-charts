@@ -59,3 +59,25 @@ miot-app:
     providers:
       google:
         enabled: false
+
+# ModularIoT Quarkus Modulith
+miot-modulith:
+  enabled: true
+  image:
+    repository: ghcr.io/microboxlabs/miot-srv
+    tag: "latest"
+  components:
+    fleet:
+      enabled: true
+    driver:
+      enabled: false
+  ingress:
+    enabled: false
+    hosts:
+      - host: api.modulariot.local
+        paths:
+          - path: /
+            pathType: Prefix
+  oidc:
+    authServerUrl: "http://keycloak/realms/miot"
+    clientId: "miot-backend"
