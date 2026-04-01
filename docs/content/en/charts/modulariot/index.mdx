@@ -4,13 +4,14 @@ The `modulariot` umbrella chart deploys the complete ModularIoT platform with al
 
 ## Overview
 
-The umbrella chart includes three sub-charts:
+The umbrella chart includes the following sub-charts:
 
 | Component | Description |
 |-----------|-------------|
 | [miot-app](/en/charts/modulariot/miot-app) | Main Next.js application with authentication and IoT features |
 | [miot-docs](/en/charts/modulariot/miot-docs) | Documentation site built with Nextra |
 | [miot-web-site](/en/charts/modulariot/miot-web-site) | Marketing website |
+| [miot-modulith](/en/charts/miot-modulith) | Quarkus modulith backend — fleet, driver and resource management |
 
 Each component can be enabled or disabled independently.
 
@@ -61,6 +62,7 @@ helm install modulariot microboxlabs/modulariot \
 | `miot-app.enabled` | Deploy main application | `true` |
 | `miot-docs.enabled` | Deploy documentation | `true` |
 | `miot-web-site.enabled` | Deploy website | `true` |
+| `miot-modulith.enabled` | Deploy Quarkus modulith backend | `true` |
 
 ### Sub-chart Configuration
 

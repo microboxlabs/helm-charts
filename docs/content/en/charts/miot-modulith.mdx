@@ -1,0 +1,354 @@
+# MIOT Modulith Chart
+
+A Helm chart for deploying **MIOT Modulith** - the ModularIoT Quarkus modulith backend for fleet, driver and resource management.
+
+## Overview
+
+MIOT Modulith is a modular monolith built with Quarkus. Each component is independently toggleable at deploy time via feature flags:
+
+- **Fleet** - vehicle monitoring, trips, routes and geofences
+- **Driver** - driver profiles, assignments and activity tracking
+- **Reactive + JDBC dual datasource** - Hibernate Reactive Panache for runtime queries, JDBC for Flyway migrations, both targeting the same PostgreSQL instance
+- **OIDC authentication** - JWT-secured API via Keycloak or any OIDC-compliant provider
+- **Prometheus metrics** and Quarkus health endpoints included out of the box
+
+## Prerequisites
+
+- Kubernetes 1.19+
+- Helm 3.0+
+- PostgreSQL database (external)
+- Keycloak or OIDC-compatible identity provider
+
+## Installation
+
+### Add the Helm repository
+
+```bash
+helm repo add mbl-charts https://microboxlabs.github.io/helm-charts
+helm repo update
+```
+
+### Install with default configuration
+
+```bash
+helm install miot-modulith mbl-charts/miot-modulith
+```
+
+### Install with custom values
+
+```bash
+helm install miot-modulith mbl-charts/miot-modulith -f values.yaml
+```
+
+## Parameters
+
+### Image Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `image.repository` | Container image repository | `ghcr.io/microboxlabs/miot-srv` |
+| `image.tag` | Container image tag | `latest` |
+| `image.pullPolicy` | Image pull policy | `IfNotPresent` |
+| `imagePullSecrets` | Image pull secrets | `[]` |
+
+### Deployment Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `replicaCount` | Number of pod replicas | `1` |
+| `nameOverride` | Override chart name | `""` |
+| `fullnameOverride` | Override full name | `""` |
+| `podAnnotations` | Pod annotations | `{}` |
+| `podLabels` | Pod labels | `{}` |
+| `podSecurityContext` | Pod security context | `{}` |
+| `securityContext` | Container security context | `{}` |
+| `nodeSelector` | Node selector | `{}` |
+| `tolerations` | Tolerations | `[]` |
+| `affinity` | Affinity rules | `{}` |
+
+### Service Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `service.type` | Kubernetes service type | `ClusterIP` |
+| `service.port` | Service port | `8180` |
+
+### Ingress Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `ingress.enabled` | Enable ingress | `false` |
+| `ingress.className` | Ingress class name | `""` |
+| `ingress.annotations` | Ingress annotations | `{}` |
+| `ingress.hosts` | Ingress hosts configuration | See values.yaml |
+| `ingress.tls` | TLS configuration | `[]` |
+
+### Component Parameters
+
+Each flag maps to a `MIOT_COMPONENT_*_ENABLED` environment variable resolved by Quarkus MicroProfile Config.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `components.fleet.enabled` | Enable fleet monitoring component | `true` |
+| `components.driver.enabled` | Enable driver monitoring component | `false` |
+
+### Database Parameters
+
+The modulith uses both a JDBC datasource (Flyway migrations) and a reactive datasource (Hibernate Reactive Panache) pointing at the same PostgreSQL instance. Both URLs are injected automatically from the values below.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `postgresql.external.host` | PostgreSQL host | `postgresql` |
+| `postgresql.external.port` | PostgreSQL port | `5432` |
+| `postgresql.external.database` | Database name | `miot` |
+| `postgresql.external.username` | Database username | `miot` |
+| `postgresql.external.password` | Database password | `miot` |
+| `postgresql.external.existingSecret` | Use existing secret for credentials | `""` |
+| `postgresql.external.existingSecretUsernameKey` | Username key in existing secret | `username` |
+| `postgresql.external.existingSecretPasswordKey` | Password key in existing secret | `password` |
+
+### OIDC Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `oidc.authServerUrl` | Keycloak realm URL | `http://keycloak/realms/miot` |
+| `oidc.clientId` | OIDC client ID | `miot-backend` |
+| `oidc.clientSecret` | Client secret (chart-managed secret) | `""` |
+| `oidc.existingSecret` | Use existing secret for client secret | `""` |
+| `oidc.existingSecretKey` | Key inside existing secret | `client-secret` |
+
+### Flyway Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `flyway.migrateAtStart` | Run database migrations on startup | `false` |
+
+### Health Check Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `livenessProbe.httpGet.path` | Liveness probe path | `/q/health/live` |
+| `livenessProbe.initialDelaySeconds` | Initial delay | `10` |
+| `livenessProbe.periodSeconds` | Check period | `10` |
+| `readinessProbe.httpGet.path` | Readiness probe path | `/q/health/ready` |
+| `readinessProbe.initialDelaySeconds` | Initial delay | `5` |
+| `readinessProbe.periodSeconds` | Check period | `10` |
+
+### Resource Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `resources.limits.cpu` | CPU limit | `""` |
+| `resources.limits.memory` | Memory limit | `""` |
+| `resources.requests.cpu` | CPU request | `""` |
+| `resources.requests.memory` | Memory request | `""` |
+
+### Autoscaling Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `autoscaling.enabled` | Enable HPA | `false` |
+| `autoscaling.minReplicas` | Minimum replicas | `1` |
+| `autoscaling.maxReplicas` | Maximum replicas | `10` |
+| `autoscaling.targetCPUUtilizationPercentage` | Target CPU utilization | `80` |
+
+### Metrics Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `metrics.enabled` | Enable metrics | `false` |
+| `metrics.serviceMonitor.enabled` | Enable ServiceMonitor | `false` |
+| `metrics.serviceMonitor.interval` | Scrape interval | `30s` |
+| `metrics.serviceMonitor.labels` | ServiceMonitor labels | `{}` |
+
+## Example Configurations
+
+### Basic Deployment (fleet only)
+
+```yaml
+replicaCount: 1
+
+postgresql:
+  external:
+    host: "postgresql.database.svc.cluster.local"
+    database: "miot"
+    existingSecret: "miot-db-credentials"
+    existingSecretUsernameKey: "username"
+    existingSecretPasswordKey: "password"
+
+oidc:
+  authServerUrl: "https://keycloak.example.com/realms/miot"
+  clientId: "miot-backend"
+  existingSecret: "miot-oidc-credentials"
+  existingSecretKey: "client-secret"
+```
+
+### Enabling Additional Components
+
+```yaml
+components:
+  fleet:
+    enabled: true
+  driver:
+    enabled: true
+```
+
+### With Flyway Migrations at Start
+
+```yaml
+flyway:
+  migrateAtStart: true
+
+postgresql:
+  external:
+    host: "postgresql.database.svc.cluster.local"
+    database: "miot"
+    username: "miot"
+    existingSecret: "miot-db-credentials"
+    existingSecretPasswordKey: "password"
+```
+
+### With Ingress and TLS
+
+```yaml
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: api.modulariot.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: miot-modulith-tls
+      hosts:
+        - api.modulariot.example.com
+```
+
+### Production (all components, autoscaling, existing secrets)
+
+```yaml
+replicaCount: 2
+
+image:
+  tag: "0.1.0"
+
+components:
+  fleet:
+    enabled: true
+  driver:
+    enabled: true
+
+postgresql:
+  external:
+    host: "postgresql.database.svc.cluster.local"
+    database: "miot"
+    existingSecret: "miot-db-credentials"
+    existingSecretUsernameKey: "username"
+    existingSecretPasswordKey: "password"
+
+oidc:
+  authServerUrl: "https://keycloak.example.com/realms/miot"
+  clientId: "miot-backend"
+  existingSecret: "miot-oidc-credentials"
+  existingSecretKey: "client-secret"
+
+flyway:
+  migrateAtStart: true
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+    labels:
+      release: prometheus
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: api.modulariot.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: miot-modulith-tls
+      hosts:
+        - api.modulariot.example.com
+```
+
+## Quarkus Endpoints
+
+Once deployed, the following endpoints are available:
+
+| Endpoint | Description |
+|----------|-------------|
+| `/q/health` | Health overview |
+| `/q/health/live` | Liveness probe |
+| `/q/health/ready` | Readiness probe |
+| `/q/metrics` | Prometheus metrics |
+| `/q/openapi` | OpenAPI specification |
+| `/q/swagger-ui` | Swagger UI |
+
+## Upgrading
+
+### To 0.x
+
+This is the initial release. No upgrade notes.
+
+## Troubleshooting
+
+### Pod fails to start with database connection error
+
+1. Verify the PostgreSQL service is running and accessible
+2. Check the database credentials in the secret
+3. Ensure the database `miot` exists
+
+```bash
+kubectl logs -l app.kubernetes.io/name=miot-modulith
+```
+
+### OIDC authentication errors
+
+1. Verify the `oidc.authServerUrl` is reachable from within the cluster
+2. Check the client secret value in the secret
+3. Confirm the client ID exists in the Keycloak realm
+
+```bash
+kubectl exec -it <pod-name> -- curl -s http://localhost:8180/q/health/ready
+```
+
+### Health checks failing
+
+1. Check if Flyway migrations completed successfully (set `flyway.migrateAtStart: true` and review logs)
+2. Verify database connectivity
+3. Review application logs for startup errors
+
+```bash
+kubectl exec -it <pod-name> -- curl localhost:8180/q/health
+```
+
+### Metrics not appearing in Prometheus
+
+1. Verify the ServiceMonitor is created: `kubectl get servicemonitor`
+2. Check that the ServiceMonitor labels match your Prometheus selector
+3. Verify the metrics endpoint is accessible: `curl <pod-ip>:8180/q/metrics`
