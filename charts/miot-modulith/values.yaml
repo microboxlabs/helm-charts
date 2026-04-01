@@ -1,0 +1,156 @@
+# Default values for miot-modulith.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/microboxlabs/miot-srv
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 8180
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: api.modulariot.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: miot-modulith-tls
+  #    hosts:
+  #      - api.modulariot.local
+
+resources: {}
+  # limits:
+  #   cpu: 500m
+  #   memory: 512Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 256Mi
+
+# Quarkus health check paths
+livenessProbe:
+  httpGet:
+    path: /q/health/live
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /q/health/ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# Modulith component selection.
+# Each flag maps to a MIOT_COMPONENT_*_ENABLED environment variable.
+# Quarkus MicroProfile Config resolves env vars over application.properties.
+components:
+  fleet:
+    enabled: true
+  driver:
+    enabled: false
+
+# PostgreSQL database configuration.
+# The modulith uses both JDBC (Flyway migrations) and reactive (Hibernate Reactive Panache)
+# against the same database instance — both URLs are injected automatically.
+postgresql:
+  external:
+    host: "postgresql"
+    port: 5432
+    database: "miot"
+    username: "miot"
+    password: "miot"
+    # Use an existing secret instead of the above username/password fields.
+    existingSecret: ""
+    existingSecretUsernameKey: "username"
+    existingSecretPasswordKey: "password"
+
+# OIDC / Keycloak authentication.
+# Maps to QUARKUS_OIDC_* environment variables.
+oidc:
+  authServerUrl: "http://keycloak/realms/miot"
+  clientId: "miot-backend"
+  # Client secret can be provided directly or via an existing secret.
+  clientSecret: ""
+  existingSecret: ""
+  existingSecretKey: "client-secret"
+
+# Flyway database migration settings.
+flyway:
+  migrateAtStart: false
+
+# Additional environment variables
+env: []
+  # - name: QUARKUS_LOG_LEVEL
+  #   value: "DEBUG"
+
+# Environment variables from secrets/configmaps
+envFrom: []
+  # - secretRef:
+  #     name: my-secret
+  # - configMapRef:
+  #     name: my-configmap
+
+volumes: []
+volumeMounts: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Prometheus ServiceMonitor for metrics scraping
+metrics:
+  enabled: false
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+    # release: prometheus
