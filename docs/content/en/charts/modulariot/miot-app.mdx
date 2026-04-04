@@ -72,6 +72,19 @@ helm install modulariot microboxlabs/modulariot \
 | `ingress.hosts[0].host` | Default hostname | `app.modulariot.local` |
 | `ingress.tls` | TLS configuration | `[]` |
 
+### APISIX Route Parameters
+
+Alternative to standard Ingress — creates an [ApisixRoute](https://apisix.apache.org/docs/ingress-controller/references/apisix_route_v2/) CRD instead. Requires the APISIX Ingress Controller.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `apisixRoute.enabled` | Enable ApisixRoute CRD (mutually exclusive with `ingress.enabled`) | `false` |
+| `apisixRoute.ingressClassName` | IngressClass that links to the GatewayProxy | `apisix` |
+| `apisixRoute.hosts` | List of hosts with paths | See values.yaml |
+| `apisixRoute.hosts[].host` | Hostname to match | `app.modulariot.local` |
+| `apisixRoute.hosts[].paths` | List of URI paths (supports `/*` wildcards) | `["/", "/*"]` |
+| `apisixRoute.plugins` | List of APISIX plugins to attach to the route | `[]` |
+
 ### Authentication Parameters
 
 | Parameter | Description | Default |
@@ -216,6 +229,31 @@ image:
 
 auth:
   secret: "dev-secret-change-in-production"
+```
+
+### With APISIX Route
+
+Uses an ApisixRoute CRD instead of a standard Ingress resource. Requires the [APISIX Ingress Controller](https://apisix.apache.org/docs/ingress-controller/getting-started/) with a GatewayProxy configured.
+
+```yaml
+ingress:
+  enabled: false
+
+apisixRoute:
+  enabled: true
+  ingressClassName: apisix
+  hosts:
+    - host: app.modulariot.example.com
+      paths:
+        - /app
+        - /app/*
+  plugins:
+    - name: redirect
+      enable: true
+      config:
+        http_to_https: true
+    - name: cors
+      enable: true
 ```
 
 ### Production

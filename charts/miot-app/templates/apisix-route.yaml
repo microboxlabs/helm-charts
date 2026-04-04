@@ -1,0 +1,28 @@
+{{- if .Values.apisixRoute.enabled -}}
+{{- $fullName := include "miot-app.fullname" . -}}
+{{- $svcPort := .Values.service.port -}}
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "miot-app.labels" . | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.apisixRoute.ingressClassName }}
+  http:
+  {{- range .Values.apisixRoute.hosts }}
+    - name: {{ .host | replace "." "-" }}
+      match:
+        hosts:
+          - {{ .host }}
+        paths:
+          {{- toYaml .paths | nindent 10 }}
+      backends:
+        - serviceName: {{ $fullName }}
+          servicePort: {{ $svcPort }}
+      {{- with $.Values.apisixRoute.plugins }}
+      plugins:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- end }}
+{{- end }}

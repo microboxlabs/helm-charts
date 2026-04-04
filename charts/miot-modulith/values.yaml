@@ -54,6 +54,25 @@ ingress:
   #    hosts:
   #      - api.modulariot.local
 
+# APISIX Route — alternative to standard Ingress, uses ApisixRoute CRD
+# Requires APISIX Ingress Controller with spec.ingressClassName support
+apisixRoute:
+  enabled: false
+  ingressClassName: apisix
+  hosts:
+    - host: api.modulariot.local
+      paths:
+        - /
+        - /*
+  plugins: []
+  # Example plugins:
+  #   - name: redirect
+  #     enable: true
+  #     config:
+  #       http_to_https: true
+  #   - name: cors
+  #     enable: true
+
 resources: {}
   # limits:
   #   cpu: 500m

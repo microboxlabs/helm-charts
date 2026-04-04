@@ -83,6 +83,19 @@ helm install miot-modulith mbl-charts/miot-modulith -f values.yaml
 | `ingress.hosts` | Ingress hosts configuration | See values.yaml |
 | `ingress.tls` | TLS configuration | `[]` |
 
+### APISIX Route Parameters
+
+Alternative to standard Ingress — creates an [ApisixRoute](https://apisix.apache.org/docs/ingress-controller/references/apisix_route_v2/) CRD instead. Requires the APISIX Ingress Controller.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `apisixRoute.enabled` | Enable ApisixRoute CRD (mutually exclusive with `ingress.enabled`) | `false` |
+| `apisixRoute.ingressClassName` | IngressClass that links to the GatewayProxy | `apisix` |
+| `apisixRoute.hosts` | List of hosts with paths | See values.yaml |
+| `apisixRoute.hosts[].host` | Hostname to match | `api.modulariot.local` |
+| `apisixRoute.hosts[].paths` | List of URI paths (supports `/*` wildcards) | `["/", "/*"]` |
+| `apisixRoute.plugins` | List of APISIX plugins to attach to the route | `[]` |
+
 ### Component Parameters
 
 Each flag maps to a `MIOT_COMPONENT_*_ENABLED` environment variable resolved by Quarkus MicroProfile Config.
@@ -225,6 +238,33 @@ ingress:
     - secretName: miot-modulith-tls
       hosts:
         - api.modulariot.example.com
+```
+
+### With APISIX Route
+
+Uses an ApisixRoute CRD instead of a standard Ingress resource. Requires the [APISIX Ingress Controller](https://apisix.apache.org/docs/ingress-controller/getting-started/) with a GatewayProxy configured.
+
+```yaml
+ingress:
+  enabled: false
+
+apisixRoute:
+  enabled: true
+  ingressClassName: apisix
+  hosts:
+    - host: api.modulariot.example.com
+      paths:
+        - /api
+        - /api/*
+        - /q
+        - /q/*
+  plugins:
+    - name: redirect
+      enable: true
+      config:
+        http_to_https: true
+    - name: cors
+      enable: true
 ```
 
 ### Production (all components, autoscaling, existing secrets)
