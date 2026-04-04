@@ -69,6 +69,10 @@ apisixRoute:
       paths:
         - /
         - /*
+  tls: []
+  #  - hosts:
+  #      - app.modulariot.local
+  #    secretName: app-tls
   plugins: []
   # Example plugins:
   #   - name: redirect

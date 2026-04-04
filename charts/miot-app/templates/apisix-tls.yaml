@@ -1,0 +1,20 @@
+{{- if and .Values.apisixRoute.enabled .Values.apisixRoute.tls -}}
+{{- range .Values.apisixRoute.tls }}
+apiVersion: apisix.apache.org/v2
+kind: ApisixTls
+metadata:
+  name: {{ .secretName }}
+  labels:
+    {{- include "miot-app.labels" $ | nindent 4 }}
+spec:
+  ingressClassName: {{ $.Values.apisixRoute.ingressClassName }}
+  hosts:
+    {{- range .hosts }}
+    - {{ . }}
+    {{- end }}
+  secret:
+    name: {{ .secretName }}
+    namespace: {{ $.Release.Namespace }}
+---
+{{- end }}
+{{- end }}
