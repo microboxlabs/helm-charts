@@ -349,6 +349,30 @@ entries:
   miot-app:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2026-04-04T20:19:32.990070058Z"
+    description: A Helm chart for ModularIoT App - Main Next.js application with authentication
+      and maps
+    digest: 9e1cc4b29a0e5f1294f1d651a9a84b42a450775760042cb06ae6d82465cfbaaf
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - application
+    - nextjs
+    - auth
+    - maps
+    - modulariot
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-app
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-app-0.3.1/miot-app-0.3.1.tgz
+    version: 0.3.1
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2026-04-04T19:56:37.31334299Z"
     description: A Helm chart for ModularIoT App - Main Next.js application with authentication
       and maps
@@ -470,6 +494,31 @@ entries:
     - https://github.com/microboxlabs/helm-charts/releases/download/miot-docs-0.1.0/miot-docs-0.1.0.tgz
     version: 0.1.0
   miot-modulith:
+  - apiVersion: v2
+    appVersion: 0.1.0
+    created: "2026-04-04T20:19:33.189305094Z"
+    description: Helm chart for the ModularIoT Quarkus modulith — fleet, driver and
+      resource management
+    digest: 86ee15c3cee574b590b7f20695f0c49f6c54b4d95da69f6a7a89ad870248624c
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - modulariot
+    - quarkus
+    - iot
+    - fleet
+    - driver
+    - modulith
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-modulith
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-modulith-0.2.1/miot-modulith-0.2.1.tgz
+    version: 0.2.1
   - apiVersion: v2
     appVersion: 0.1.0
     created: "2026-04-04T19:56:37.493648789Z"
@@ -635,4 +684,4 @@ entries:
     urls:
     - quarkus-sse/quarkus-sse-0.1.0.tgz
     version: 0.1.0
-generated: "2026-04-04T19:56:37.493675379Z"
+generated: "2026-04-04T20:19:33.189339819Z"
