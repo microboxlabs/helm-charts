@@ -1,8 +1,8 @@
 apiVersion: v2
 name: miot-modulith
-description: Helm chart for the ModularIoT Quarkus modulith — fleet, driver and resource management
+description: Helm chart for the ModularIoT Quarkus modulith — fleet, driver, tracking and resource management
 type: application
-version: 0.2.1
+version: 0.3.0
 appVersion: "0.1.0"
 keywords:
   - modulariot

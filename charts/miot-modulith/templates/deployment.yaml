@@ -64,7 +64,8 @@ spec:
             # Flyway
             - name: QUARKUS_FLYWAY_MIGRATE_AT_START
               value: {{ .Values.flyway.migrateAtStart | quote }}
-            # OIDC / Keycloak
+            {{- if .Values.oidc.authServerUrl }}
+            # OIDC / Keycloak (DEPRECATED — kept for backwards compat)
             - name: QUARKUS_OIDC_AUTH_SERVER_URL
               value: {{ .Values.oidc.authServerUrl | quote }}
             - name: QUARKUS_OIDC_CLIENT_ID
@@ -74,11 +75,49 @@ spec:
                 secretKeyRef:
                   name: {{ include "miot-modulith.oidcSecretName" . }}
                   key: {{ .Values.oidc.existingSecretKey | default "client-secret" }}
+            {{- end }}
+            # Auth0 dual JWT (DualJwtAuthMechanism)
+            {{- if .Values.auth.issuer }}
+            - name: AUTH0_ISSUER
+              value: {{ .Values.auth.issuer | quote }}
+            {{- end }}
+            {{- if or .Values.auth.hs256Secret .Values.auth.existingSecret }}
+            - name: AUTH0_HS256_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "miot-modulith.authSecretName" . }}
+                  key: {{ .Values.auth.existingSecretHs256Key | default "hs256-secret" }}
+            {{- end }}
+            {{- if .Values.auth.jwksUrl }}
+            - name: AUTH0_JWKS_URL
+              value: {{ .Values.auth.jwksUrl | quote }}
+            {{- end }}
+            {{- if .Values.auth.hs256Audience }}
+            - name: AUTH0_HS256_AUDIENCE
+              value: {{ .Values.auth.hs256Audience | quote }}
+            {{- end }}
+            {{- if .Values.auth.rs256Audience }}
+            - name: AUTH0_RS256_AUDIENCE
+              value: {{ .Values.auth.rs256Audience | quote }}
+            {{- end }}
+            # Messaging
+            - name: MIOT_MESSAGING_TYPE
+              value: {{ .Values.messaging.type | quote }}
+            {{- if .Values.messaging.pulsarUrl }}
+            - name: PULSAR_URL
+              value: {{ .Values.messaging.pulsarUrl | quote }}
+            {{- end }}
+            {{- if .Values.messaging.trackingTopic }}
+            - name: MIOT_TRACKING_TOPIC
+              value: {{ .Values.messaging.trackingTopic | quote }}
+            {{- end }}
             # Modulith component selection
             - name: MIOT_COMPONENT_FLEET_ENABLED
               value: {{ .Values.components.fleet.enabled | quote }}
             - name: MIOT_COMPONENT_DRIVER_ENABLED
               value: {{ .Values.components.driver.enabled | quote }}
+            - name: MIOT_COMPONENT_TRACKING_ENABLED
+              value: {{ .Values.components.tracking.enabled | quote }}
             # Additional environment variables
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}

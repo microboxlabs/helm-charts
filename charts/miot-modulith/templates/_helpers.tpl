@@ -88,12 +88,23 @@ Get the database credentials secret name
 {{- end }}
 
 {{/*
-Get the OIDC credentials secret name
+Get the OIDC credentials secret name (DEPRECATED — kept for backwards compat)
 */}}
 {{- define "miot-modulith.oidcSecretName" -}}
 {{- if .Values.oidc.existingSecret }}
 {{- .Values.oidc.existingSecret }}
 {{- else }}
 {{- include "miot-modulith.fullname" . }}-oidc-credentials
+{{- end }}
+{{- end }}
+
+{{/*
+Get the Auth0 credentials secret name
+*/}}
+{{- define "miot-modulith.authSecretName" -}}
+{{- if .Values.auth.existingSecret }}
+{{- .Values.auth.existingSecret }}
+{{- else }}
+{{- include "miot-modulith.fullname" . }}-auth-credentials
 {{- end }}
 {{- end }}

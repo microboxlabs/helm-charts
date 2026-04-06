@@ -119,6 +119,8 @@ components:
     enabled: true
   driver:
     enabled: false
+  tracking:
+    enabled: false
 
 # PostgreSQL database configuration.
 # The modulith uses both JDBC (Flyway migrations) and reactive (Hibernate Reactive Panache)
@@ -135,8 +137,20 @@ postgresql:
     existingSecretUsernameKey: "username"
     existingSecretPasswordKey: "password"
 
-# OIDC / Keycloak authentication.
-# Maps to QUARKUS_OIDC_* environment variables.
+# Auth0 dual JWT authentication (DualJwtAuthMechanism).
+# HS256 for M2M device endpoints (@M2MAuth), RS256 for web endpoints (JWKS).
+auth:
+  issuer: ""
+  hs256Secret: ""
+  jwksUrl: ""
+  hs256Audience: ""
+  rs256Audience: ""
+  # Use an existing K8s secret for the HS256 signing secret.
+  existingSecret: ""
+  existingSecretHs256Key: "hs256-secret"
+
+# OIDC / Keycloak authentication (DEPRECATED — replaced by auth section above).
+# Kept for backwards compatibility. Ignored at runtime when quarkus-oidc is not present.
 oidc:
   authServerUrl: "http://keycloak/realms/miot"
   clientId: "miot-backend"
@@ -144,6 +158,13 @@ oidc:
   clientSecret: ""
   existingSecret: ""
   existingSecretKey: "client-secret"
+
+# External messaging configuration.
+messaging:
+  # log = standalone (messages logged, not sent), pulsar = Apache Pulsar
+  type: "log"
+  pulsarUrl: ""
+  trackingTopic: ""
 
 # Flyway database migration settings.
 flyway:
