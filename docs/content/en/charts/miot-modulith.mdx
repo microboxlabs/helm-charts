@@ -1,6 +1,6 @@
 # MIOT Modulith Chart
 
-A Helm chart for deploying **MIOT Modulith** - the ModularIoT Quarkus modulith backend for fleet, driver and resource management.
+A Helm chart for deploying **MIOT Modulith** - the ModularIoT Quarkus modulith backend for fleet, driver, tracking and resource management.
 
 ## Overview
 
@@ -8,8 +8,10 @@ MIOT Modulith is a modular monolith built with Quarkus. Each component is indepe
 
 - **Fleet** - vehicle monitoring, trips, routes and geofences
 - **Driver** - driver profiles, assignments and activity tracking
+- **Tracking** - GPS asset position ingestion via pluggable messaging (Pulsar or standalone)
 - **Reactive + JDBC dual datasource** - Hibernate Reactive Panache for runtime queries, JDBC for Flyway migrations, both targeting the same PostgreSQL instance
-- **OIDC authentication** - JWT-secured API via Keycloak or any OIDC-compliant provider
+- **Dual JWT authentication** - HS256 for M2M device endpoints, RS256 (JWKS) for web application endpoints, both from the same Auth0 tenant
+- **Pluggable messaging** - log mode (standalone, no broker) or Pulsar for production
 - **Prometheus metrics** and Quarkus health endpoints included out of the box
 
 ## Prerequisites
@@ -17,7 +19,8 @@ MIOT Modulith is a modular monolith built with Quarkus. Each component is indepe
 - Kubernetes 1.19+
 - Helm 3.0+
 - PostgreSQL database (external)
-- Keycloak or OIDC-compatible identity provider
+- Auth0 tenant with M2M API (HS256) and web API (RS256)
+- Apache Pulsar (optional, only when `messaging.type=pulsar`)
 
 ## Installation
 
@@ -104,6 +107,31 @@ Each flag maps to a `MIOT_COMPONENT_*_ENABLED` environment variable resolved by 
 |-----------|-------------|---------|
 | `components.fleet.enabled` | Enable fleet monitoring component | `true` |
 | `components.driver.enabled` | Enable driver monitoring component | `false` |
+| `components.tracking.enabled` | Enable GPS asset tracking component | `false` |
+
+### Auth Parameters
+
+Dual JWT authentication via `DualJwtAuthMechanism`. M2M device endpoints (annotated with `@M2MAuth`) are verified using HS256 with a shared secret. All other API endpoints are verified using RS256 via the Auth0 JWKS endpoint. See [ADR-003](https://modulariot.com/docs/reference/architecture-decisions/adr-003-dual-jwt-authentication) for details.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `auth.issuer` | Auth0 issuer URL (same for both token types) | `""` |
+| `auth.hs256Secret` | HS256 signing secret (Auth0 API Signing Secret) | `""` |
+| `auth.jwksUrl` | RS256 JWKS endpoint URL | `""` |
+| `auth.hs256Audience` | Expected audience for M2M tokens | `""` |
+| `auth.rs256Audience` | Expected audience for web tokens | `""` |
+| `auth.existingSecret` | Use existing K8s secret for HS256 secret | `""` |
+| `auth.existingSecretHs256Key` | Key inside existing secret | `hs256-secret` |
+
+### Messaging Parameters
+
+Controls how modules publish to external message brokers. In `log` mode, messages are logged at DEBUG level and not sent — no broker required. In `pulsar` mode, messages are published to Apache Pulsar.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `messaging.type` | Messaging backend: `log` (standalone) or `pulsar` | `log` |
+| `messaging.pulsarUrl` | Pulsar service URL (when `type=pulsar`) | `""` |
+| `messaging.trackingTopic` | Pulsar topic for asset tracking events | `""` |
 
 ### Database Parameters
 
@@ -120,11 +148,13 @@ The modulith uses both a JDBC datasource (Flyway migrations) and a reactive data
 | `postgresql.external.existingSecretUsernameKey` | Username key in existing secret | `username` |
 | `postgresql.external.existingSecretPasswordKey` | Password key in existing secret | `password` |
 
-### OIDC Parameters
+### OIDC Parameters (Deprecated)
+
+> **Deprecated since 0.3.0** — replaced by the `auth` section above. OIDC env vars are only rendered when `oidc.authServerUrl` is set (backwards compatibility). The Quarkus backend no longer includes the `quarkus-oidc` extension.
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `oidc.authServerUrl` | Keycloak realm URL | `http://keycloak/realms/miot` |
+| `oidc.authServerUrl` | Keycloak realm URL | `""` |
 | `oidc.clientId` | OIDC client ID | `miot-backend` |
 | `oidc.clientSecret` | Client secret (chart-managed secret) | `""` |
 | `oidc.existingSecret` | Use existing secret for client secret | `""` |
@@ -181,6 +211,15 @@ The modulith uses both a JDBC datasource (Flyway migrations) and a reactive data
 ```yaml
 replicaCount: 1
 
+components:
+  fleet:
+    enabled: true
+
+auth:
+  issuer: "https://auth0.example.com/"
+  jwksUrl: "https://auth0.example.com/.well-known/jwks.json"
+  rs256Audience: "https://api.example.com/v1"
+
 postgresql:
   external:
     host: "postgresql.database.svc.cluster.local"
@@ -188,15 +227,9 @@ postgresql:
     existingSecret: "miot-db-credentials"
     existingSecretUsernameKey: "username"
     existingSecretPasswordKey: "password"
-
-oidc:
-  authServerUrl: "https://keycloak.example.com/realms/miot"
-  clientId: "miot-backend"
-  existingSecret: "miot-oidc-credentials"
-  existingSecretKey: "client-secret"
 ```
 
-### Enabling Additional Components
+### All Components with Auth0
 
 ```yaml
 components:
@@ -204,6 +237,38 @@ components:
     enabled: true
   driver:
     enabled: true
+  tracking:
+    enabled: true
+
+auth:
+  issuer: "https://auth0.example.com/"
+  hs256Secret: "your-api-signing-secret"
+  jwksUrl: "https://auth0.example.com/.well-known/jwks.json"
+  hs256Audience: "https://iot.example.com/v1/asset/track"
+  rs256Audience: "https://api.example.com/v1"
+
+messaging:
+  type: "log"
+```
+
+### With Pulsar Messaging
+
+```yaml
+components:
+  tracking:
+    enabled: true
+
+auth:
+  issuer: "https://auth0.example.com/"
+  hs256Secret: "your-api-signing-secret"
+  jwksUrl: "https://auth0.example.com/.well-known/jwks.json"
+  hs256Audience: "https://iot.example.com/v1/asset/track"
+  rs256Audience: "https://api.example.com/v1"
+
+messaging:
+  type: "pulsar"
+  pulsarUrl: "pulsar://pulsar.messaging.svc.cluster.local:6650"
+  trackingTopic: "persistent://streamhub/tracking/asset-positions"
 ```
 
 ### With Flyway Migrations at Start
@@ -273,13 +338,28 @@ apisixRoute:
 replicaCount: 2
 
 image:
-  tag: "0.1.0"
+  tag: "0.3.0"
 
 components:
   fleet:
     enabled: true
   driver:
     enabled: true
+  tracking:
+    enabled: true
+
+auth:
+  issuer: "https://auth0.example.com/"
+  existingSecret: "miot-auth0-credentials"
+  existingSecretHs256Key: "hs256-secret"
+  jwksUrl: "https://auth0.example.com/.well-known/jwks.json"
+  hs256Audience: "https://iot.example.com/v1/asset/track"
+  rs256Audience: "https://api.example.com/v1"
+
+messaging:
+  type: "pulsar"
+  pulsarUrl: "pulsar://pulsar.messaging.svc.cluster.local:6650"
+  trackingTopic: "persistent://streamhub/tracking/asset-positions"
 
 postgresql:
   external:
@@ -288,12 +368,6 @@ postgresql:
     existingSecret: "miot-db-credentials"
     existingSecretUsernameKey: "username"
     existingSecretPasswordKey: "password"
-
-oidc:
-  authServerUrl: "https://keycloak.example.com/realms/miot"
-  clientId: "miot-backend"
-  existingSecret: "miot-oidc-credentials"
-  existingSecretKey: "client-secret"
 
 flyway:
   migrateAtStart: true
@@ -351,6 +425,14 @@ Once deployed, the following endpoints are available:
 
 ## Upgrading
 
+### To 0.3.0
+
+- **New:** `components.tracking` for GPS asset tracking module
+- **New:** `auth` section replaces `oidc` for dual JWT authentication (HS256 + RS256)
+- **New:** `messaging` section for pluggable external messaging (log/pulsar)
+- **Deprecated:** `oidc` section — OIDC env vars only render when `oidc.authServerUrl` is set. Migrate to `auth` section.
+- **Breaking:** The Quarkus backend no longer includes `quarkus-oidc`. Existing deployments using OIDC must switch to the `auth` section with Auth0 credentials.
+
 ### To 0.x
 
 This is the initial release. No upgrade notes.
@@ -367,21 +449,23 @@ This is the initial release. No upgrade notes.
 kubectl logs -l app.kubernetes.io/name=miot-modulith
 ```
 
-### OIDC authentication errors
+### Authentication errors (401)
 
-1. Verify the `oidc.authServerUrl` is reachable from within the cluster
-2. Check the client secret value in the secret
-3. Confirm the client ID exists in the Keycloak realm
+1. Verify `auth.issuer` matches the `iss` claim in your Auth0 tokens
+2. For M2M (HS256): check that `auth.hs256Secret` matches the Auth0 API Signing Secret
+3. For web (RS256): verify `auth.jwksUrl` is reachable from the cluster
+4. Check audience values match the Auth0 API identifiers
 
 ```bash
-# From your local machine (no curl required inside the container)
+# Test from local machine
 kubectl port-forward svc/<release-name>-miot-modulith 8180:8180
-curl -s http://localhost:8180/q/health/ready
 
-# Or exec into the pod using container-bundled tools (no curl needed)
-kubectl exec -it <pod-name> -- /bin/sh -c "wget -qO- http://localhost:8180/q/health/ready"
-# Alternatively with netcat if wget is also absent
-kubectl exec -it <pod-name> -- /bin/sh -c "echo -e 'GET /q/health/ready HTTP/1.0\r\n\r\n' | nc localhost 8180"
+# Get an M2M token and test
+TOKEN=$(curl -s --request POST --url https://auth0.example.com/oauth/token \
+  --header 'content-type: application/json' \
+  --data '{"client_id":"...","client_secret":"...","audience":"...","grant_type":"client_credentials"}' | jq -r '.access_token')
+
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8180/api/v1/asset/track
 ```
 
 ### Health checks failing
@@ -391,12 +475,8 @@ kubectl exec -it <pod-name> -- /bin/sh -c "echo -e 'GET /q/health/ready HTTP/1.0
 3. Review application logs for startup errors
 
 ```bash
-# From your local machine
 kubectl port-forward svc/<release-name>-miot-modulith 8180:8180
 curl -s http://localhost:8180/q/health
-
-# Or exec into the pod using container-bundled tools
-kubectl exec -it <pod-name> -- /bin/sh -c "wget -qO- http://localhost:8180/q/health"
 ```
 
 ### Metrics not appearing in Prometheus
