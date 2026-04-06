@@ -121,6 +121,8 @@ components:
     enabled: false
   tracking:
     enabled: false
+  gateway:
+    enabled: false
 
 # PostgreSQL database configuration.
 # The modulith uses both JDBC (Flyway migrations) and reactive (Hibernate Reactive Panache)
@@ -169,6 +171,33 @@ messaging:
 # Flyway database migration settings.
 flyway:
   migrateAtStart: false
+
+# Fork engine configuration (gateway component).
+# When enabled, the chart creates a ConfigMap for filter files and injects
+# the fork engine environment variables into the deployment.
+fork:
+  enabled: false
+  rules: []
+  # Example rule — uncomment and customize:
+  #   - id: asset-track-canary
+  #     enabled: true
+  #     paths:
+  #       - /v1/asset/track
+  #     bodyParser: json
+  #     keyField: asset_id
+  #     filterFile: /config/fork/asset-ids.txt
+  #     targets:
+  #       - id: storm
+  #         mirrorHost: https://storm.modulariot.com
+  #         mirrorPath: /api/v1/asset/track
+  #         timeout: 5000
+  # Filter file contents — one key per line. Mounted as ConfigMap at /config/fork/.
+  # Lines starting with # and blank lines are ignored by the fork engine.
+  filters: {}
+  # Example:
+  #   asset-ids.txt: |
+  #     SVSX88
+  #     TRUCK-001
 
 # Additional environment variables
 env: []

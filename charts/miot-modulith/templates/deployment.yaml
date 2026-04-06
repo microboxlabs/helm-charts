@@ -118,6 +118,41 @@ spec:
               value: {{ .Values.components.driver.enabled | quote }}
             - name: MIOT_COMPONENT_TRACKING_ENABLED
               value: {{ .Values.components.tracking.enabled | quote }}
+            - name: MIOT_COMPONENT_GATEWAY_ENABLED
+              value: {{ .Values.components.gateway.enabled | quote }}
+            {{- if .Values.fork.enabled }}
+            # Fork engine
+            - name: FORK_ENABLED
+              value: "true"
+            {{- range $i, $rule := .Values.fork.rules }}
+            - name: FORK_RULES_{{ $i }}__ID
+              value: {{ $rule.id | quote }}
+            - name: FORK_RULES_{{ $i }}__ENABLED
+              value: {{ $rule.enabled | default true | quote }}
+            {{- range $j, $path := $rule.paths }}
+            - name: FORK_RULES_{{ $i }}__PATHS_{{ $j }}_
+              value: {{ $path | quote }}
+            {{- end }}
+            - name: FORK_RULES_{{ $i }}__BODY_PARSER
+              value: {{ $rule.bodyParser | default "json" | quote }}
+            - name: FORK_RULES_{{ $i }}__KEY_FIELD
+              value: {{ $rule.keyField | default "asset_id" | quote }}
+            {{- if $rule.filterFile }}
+            - name: FORK_RULES_{{ $i }}__FILTER_FILE
+              value: {{ $rule.filterFile | quote }}
+            {{- end }}
+            {{- range $k, $target := $rule.targets }}
+            - name: FORK_RULES_{{ $i }}__TARGETS_{{ $k }}__ID
+              value: {{ $target.id | quote }}
+            - name: FORK_RULES_{{ $i }}__TARGETS_{{ $k }}__MIRROR_HOST
+              value: {{ $target.mirrorHost | quote }}
+            - name: FORK_RULES_{{ $i }}__TARGETS_{{ $k }}__MIRROR_PATH
+              value: {{ $target.mirrorPath | default "/" | quote }}
+            - name: FORK_RULES_{{ $i }}__TARGETS_{{ $k }}__TIMEOUT
+              value: {{ $target.timeout | default 5000 | quote }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
             # Additional environment variables
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
@@ -132,13 +167,27 @@ spec:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          {{- with .Values.volumeMounts }}
+          {{- if or .Values.volumeMounts .Values.fork.filters }}
           volumeMounts:
+            {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if .Values.fork.filters }}
+            - name: fork-filters
+              mountPath: /config/fork
+              readOnly: true
+            {{- end }}
           {{- end }}
-      {{- with .Values.volumes }}
+      {{- if or .Values.volumes .Values.fork.filters }}
       volumes:
+        {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.fork.filters }}
+        - name: fork-filters
+          configMap:
+            name: {{ include "miot-modulith.fullname" . }}-fork-filters
+        {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

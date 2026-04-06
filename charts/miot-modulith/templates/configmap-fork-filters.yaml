@@ -1,0 +1,14 @@
+{{- if .Values.fork.filters }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "miot-modulith.fullname" . }}-fork-filters
+  labels:
+    {{- include "miot-modulith.labels" . | nindent 4 }}
+    app.kubernetes.io/component: fork-filters
+data:
+  {{- range $name, $content := .Values.fork.filters }}
+  {{ $name }}: |
+    {{- $content | nindent 4 }}
+  {{- end }}
+{{- end }}
