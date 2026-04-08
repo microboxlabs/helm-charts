@@ -142,7 +142,8 @@ postgresql:
 # Auth0 dual JWT authentication (DualJwtAuthMechanism).
 # HS256 for M2M device endpoints (@M2MAuth), RS256 for web endpoints (JWKS).
 auth:
-  issuer: ""
+  hs256Issuer: ""
+  rs256Issuer: ""
   hs256Secret: ""
   jwksUrl: ""
   hs256Audience: ""

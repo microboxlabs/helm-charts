@@ -77,9 +77,13 @@ spec:
                   key: {{ .Values.oidc.existingSecretKey | default "client-secret" }}
             {{- end }}
             # Auth0 dual JWT (DualJwtAuthMechanism)
-            {{- if .Values.auth.issuer }}
-            - name: AUTH0_ISSUER
-              value: {{ .Values.auth.issuer | quote }}
+            {{- if .Values.auth.hs256Issuer }}
+            - name: AUTH0_HS256_ISSUER
+              value: {{ .Values.auth.hs256Issuer | quote }}
+            {{- end }}
+            {{- if .Values.auth.rs256Issuer }}
+            - name: AUTH0_RS256_ISSUER
+              value: {{ .Values.auth.rs256Issuer | quote }}
             {{- end }}
             {{- if or .Values.auth.hs256Secret .Values.auth.existingSecret }}
             - name: AUTH0_HS256_SECRET

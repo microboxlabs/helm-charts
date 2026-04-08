@@ -115,7 +115,8 @@ Dual JWT authentication via `DualJwtAuthMechanism`. M2M device endpoints (annota
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `auth.issuer` | Auth0 issuer URL (same for both token types) | `""` |
+| `auth.hs256Issuer` | Auth0 issuer URL for M2M tokens (HS256) | `""` |
+| `auth.rs256Issuer` | Auth0 issuer URL for web tokens (RS256) | `""` |
 | `auth.hs256Secret` | HS256 signing secret (Auth0 API Signing Secret) | `""` |
 | `auth.jwksUrl` | RS256 JWKS endpoint URL | `""` |
 | `auth.hs256Audience` | Expected audience for M2M tokens | `""` |
@@ -216,7 +217,7 @@ components:
     enabled: true
 
 auth:
-  issuer: "https://auth0.example.com/"
+  rs256Issuer: "https://auth0.example.com/"
   jwksUrl: "https://auth0.example.com/.well-known/jwks.json"
   rs256Audience: "https://api.example.com/v1"
 
@@ -241,7 +242,8 @@ components:
     enabled: true
 
 auth:
-  issuer: "https://auth0.example.com/"
+  hs256Issuer: "https://dev-tenant.auth0.com/"
+  rs256Issuer: "https://auth0.example.com/"
   hs256Secret: "your-api-signing-secret"
   jwksUrl: "https://auth0.example.com/.well-known/jwks.json"
   hs256Audience: "https://iot.example.com/v1/asset/track"
@@ -259,7 +261,8 @@ components:
     enabled: true
 
 auth:
-  issuer: "https://auth0.example.com/"
+  hs256Issuer: "https://dev-tenant.auth0.com/"
+  rs256Issuer: "https://auth0.example.com/"
   hs256Secret: "your-api-signing-secret"
   jwksUrl: "https://auth0.example.com/.well-known/jwks.json"
   hs256Audience: "https://iot.example.com/v1/asset/track"
@@ -349,7 +352,8 @@ components:
     enabled: true
 
 auth:
-  issuer: "https://auth0.example.com/"
+  hs256Issuer: "https://dev-tenant.auth0.com/"
+  rs256Issuer: "https://auth0.example.com/"
   existingSecret: "miot-auth0-credentials"
   existingSecretHs256Key: "hs256-secret"
   jwksUrl: "https://auth0.example.com/.well-known/jwks.json"
@@ -451,7 +455,7 @@ kubectl logs -l app.kubernetes.io/name=miot-modulith
 
 ### Authentication errors (401)
 
-1. Verify `auth.issuer` matches the `iss` claim in your Auth0 tokens
+1. Verify `auth.hs256Issuer` matches the `iss` claim in your M2M tokens and `auth.rs256Issuer` matches the `iss` claim in your web tokens
 2. For M2M (HS256): check that `auth.hs256Secret` matches the Auth0 API Signing Secret
 3. For web (RS256): verify `auth.jwksUrl` is reachable from the cluster
 4. Check audience values match the Auth0 API identifiers
