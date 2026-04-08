@@ -496,6 +496,31 @@ entries:
   miot-modulith:
   - apiVersion: v2
     appVersion: 0.1.0
+    created: "2026-04-08T12:45:17.321746687Z"
+    description: Helm chart for the ModularIoT Quarkus modulith — fleet, driver, tracking,
+      gateway and resource management
+    digest: d57873efac5212582142778dd74fd24f36df7fc2bc3e07eaea4061d8ced35403
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - modulariot
+    - quarkus
+    - iot
+    - fleet
+    - driver
+    - modulith
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-modulith
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-modulith-0.4.1/miot-modulith-0.4.1.tgz
+    version: 0.4.1
+  - apiVersion: v2
+    appVersion: 0.1.0
     created: "2026-04-06T18:12:58.101673424Z"
     description: Helm chart for the ModularIoT Quarkus modulith — fleet, driver, tracking,
       gateway and resource management
@@ -734,4 +759,4 @@ entries:
     urls:
     - quarkus-sse/quarkus-sse-0.1.0.tgz
     version: 0.1.0
-generated: "2026-04-06T18:12:58.101710683Z"
+generated: "2026-04-08T12:45:17.321790679Z"
