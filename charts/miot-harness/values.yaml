@@ -176,3 +176,98 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# =============================================================================
+# Harness configuration — every key below maps 1:1 to a `MIOT_HARNESS_*`
+# env var read by `miot_harness/config.py`. Plan:
+# .cursor/plans/ai-first/13-server-deployment/helm/02-values-surface.md
+# =============================================================================
+
+# Process / runtime contract
+env: "local"               # MIOT_HARNESS_ENV — set per environment.
+defaultTenantId: "demo-tenant"
+defaultUserId: "demo-user"
+logLevel: "INFO"           # DEBUG | INFO | WARNING | ERROR | CRITICAL
+requestIdHeader: "x-request-id"
+
+# Nexo / Coordinador integration. Mirrors miot-calendar's
+# `postgresql.external.*` nesting style.
+#
+# Connectivity options (see plan 13 / 04-coordinador-connectivity.md):
+#   * `nexo.dsn`              — literal DSN (dev/local convenience)
+#   * `nexo.existingSecret`   — reference a Secret holding the DSN (production)
+#   * neither set             — Nexo disabled at boot, harness still healthy
+nexo:
+  dsn: ""                              # NEVER commit a real DSN here.
+  existingSecret: ""                   # Name of K8s Secret with the DSN.
+  existingSecretKey: "dsn"             # Field within that Secret.
+  dbAlias: "coordinador-dev"
+  applicationName: "miot-harness"      # Visible in pg_stat_activity.
+  tenantLock: "mintral"                # Single-tenant pin (plan 13 v1).
+  searchPath: "nexo"
+  freshnessWarnMinutes: 30             # Soft gate.
+  freshnessRefuseMinutes: 240          # Hard gate (refuses to register tools).
+  maxTurns: 8
+  criticEnabled: false
+  supervisorMode: "rule"               # `rule` or `llm`.
+  models:
+    filterExpert: "claude-haiku-4-5"
+    analyst: "claude-sonnet-4-6"
+    synthesizer: "claude-sonnet-4-6"
+    critic: "claude-sonnet-4-6"
+    summarizer: "claude-haiku-4-5"
+
+# Provider API keys. Three modes (in precedence order):
+#   1. existingSecret non-empty     -> chart references the Secret.
+#   2. apiKey non-empty             -> chart creates a Secret (T06).
+#   3. both empty                   -> env var unset, harness boots
+#                                       without that provider.
+# Memory: never commit a real API key as a default.
+anthropic:
+  existingSecret: ""
+  existingSecretKey: "api-key"
+  apiKey: ""
+openai:
+  existingSecret: ""
+  existingSecretKey: "api-key"
+  apiKey: ""
+
+# Connectivity to Coordinador. The tunnel sidecar is a dev convenience
+# (kubectl port-forward inside the Pod); production should reach
+# Coordinador via VNet peering / Private Link / PostgREST instead.
+# T08 wires this; T05 lays the values surface only.
+connectivity:
+  tunnel:
+    enabled: false
+    image: ""        # e.g. bitnami/kubectl:latest
+    args: []
+    port: 6434       # local port the sidecar exposes.
+
+# NetworkPolicy egress allowlist. T07 implements the template.
+# Defaults off — many clusters' CNIs don't enforce NetworkPolicy.
+networkPolicy:
+  enabled: false
+
+# Observability. T09 adds the ServiceMonitor template.
+# `/metrics` endpoint lands in plan 13 phase 5 (the harness side);
+# the chart is forward-compatible — toggling on without the endpoint
+# is a no-op surface for ops.
+metrics:
+  enabled: false
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+    # release: prometheus
+
+# Workspace persistence. T09 adds the PVC template.
+# Default emptyDir survives container restarts but not pod
+# rescheduling; opt-in PVC for run_store survivability.
+persistence:
+  enabled: false
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+  annotations: {}

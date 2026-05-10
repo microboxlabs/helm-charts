@@ -44,6 +44,60 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+          env:
+            # Process / runtime
+            - name: MIOT_HARNESS_ENV
+              value: {{ .Values.env | quote }}
+            - name: MIOT_HARNESS_LOG_LEVEL
+              value: {{ .Values.logLevel | quote }}
+            - name: MIOT_HARNESS_DEFAULT_TENANT_ID
+              value: {{ .Values.defaultTenantId | quote }}
+            - name: MIOT_HARNESS_DEFAULT_USER_ID
+              value: {{ .Values.defaultUserId | quote }}
+            - name: MIOT_HARNESS_REQUEST_ID_HEADER
+              value: {{ .Values.requestIdHeader | quote }}
+            # Nexo (Coordinador) — DSN precedence: existingSecret > literal > unset
+            {{- if .Values.nexo.existingSecret }}
+            - name: MIOT_HARNESS_NEXO_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.nexo.existingSecret }}
+                  key: {{ .Values.nexo.existingSecretKey | default "dsn" }}
+            {{- else if .Values.nexo.dsn }}
+            - name: MIOT_HARNESS_NEXO_DSN
+              value: {{ .Values.nexo.dsn | quote }}
+            {{- end }}
+            - name: MIOT_HARNESS_NEXO_DB_ALIAS
+              value: {{ .Values.nexo.dbAlias | quote }}
+            - name: MIOT_HARNESS_NEXO_APPLICATION_NAME
+              value: {{ .Values.nexo.applicationName | quote }}
+            - name: MIOT_HARNESS_NEXO_TENANT_LOCK
+              value: {{ .Values.nexo.tenantLock | quote }}
+            - name: MIOT_HARNESS_NEXO_SEARCH_PATH
+              value: {{ .Values.nexo.searchPath | quote }}
+            - name: MIOT_HARNESS_NEXO_FRESHNESS_WARN_MINUTES
+              value: {{ .Values.nexo.freshnessWarnMinutes | quote }}
+            - name: MIOT_HARNESS_NEXO_FRESHNESS_REFUSE_MINUTES
+              value: {{ .Values.nexo.freshnessRefuseMinutes | quote }}
+            - name: MIOT_HARNESS_NEXO_MAX_TURNS
+              value: {{ .Values.nexo.maxTurns | quote }}
+            - name: MIOT_HARNESS_NEXO_CRITIC_ENABLED
+              value: {{ .Values.nexo.criticEnabled | quote }}
+            - name: MIOT_HARNESS_NEXO_SUPERVISOR_MODE
+              value: {{ .Values.nexo.supervisorMode | quote }}
+            - name: MIOT_HARNESS_NEXO_FILTER_EXPERT_MODEL
+              value: {{ .Values.nexo.models.filterExpert | quote }}
+            - name: MIOT_HARNESS_NEXO_ANALYST_MODEL
+              value: {{ .Values.nexo.models.analyst | quote }}
+            - name: MIOT_HARNESS_NEXO_SYNTHESIZER_MODEL
+              value: {{ .Values.nexo.models.synthesizer | quote }}
+            - name: MIOT_HARNESS_NEXO_CRITIC_MODEL
+              value: {{ .Values.nexo.models.critic | quote }}
+            - name: MIOT_HARNESS_NEXO_SUMMARIZER_MODEL
+              value: {{ .Values.nexo.models.summarizer | quote }}
+            # Provider API keys — T06 wires the secret refs.
+            # Until then, keys are unset unless the user supplies an
+            # existingSecret out-of-band and references it via env injection.
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
