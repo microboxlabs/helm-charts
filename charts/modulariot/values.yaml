@@ -81,3 +81,10 @@ miot-modulith:
   oidc:
     authServerUrl: "http://keycloak/realms/miot"
     clientId: "miot-backend"
+
+# ModularIoT Harness — multi-agent backend (FastAPI). Default disabled
+# so existing umbrella users don't suddenly get an agent runtime they
+# didn't ask for. Enable with `--set miot-harness.enabled=true`.
+# Full parameters: https://microboxlabs.github.io/helm-charts/charts/modulariot/miot-harness
+miot-harness:
+  enabled: false

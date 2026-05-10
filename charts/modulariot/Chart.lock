@@ -11,5 +11,8 @@ dependencies:
 - name: miot-modulith
   repository: file://../miot-modulith
   version: 0.1.0
+- name: miot-harness
+  repository: file://../miot-harness
+  version: 0.1.0
 digest: sha256:cb48d30e3b19001205e7d6c50ffd5d5fffe5e5d9d9640569c4c43e971b7f2d07
 generated: "2026-04-01T12:09:45.430048-03:00"
