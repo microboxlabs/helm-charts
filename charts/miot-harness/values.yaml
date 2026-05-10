@@ -318,11 +318,16 @@ metrics:
     labels: {}
     # release: prometheus
 
-# Workspace persistence. T09 adds the PVC template.
-# Default emptyDir survives container restarts but not pod
-# rescheduling; opt-in PVC for run_store survivability.
+# Workspace persistence. The chart ALWAYS mounts a writable volume at
+# `/app/.miot-workspace` (required because the container runs with
+# readOnlyRootFilesystem=true). Default emptyDir survives container
+# restarts but not pod rescheduling; opt-in PVC for run_store durability.
 persistence:
   enabled: false
+  # If set, chart skips PVC creation and references this claim directly.
+  # Lets operators bring their own PVC (StatefulSet-style claim management,
+  # cluster-shared storage, etc.).
+  existingClaim: ""
   storageClass: ""
   accessModes:
     - ReadWriteOnce
