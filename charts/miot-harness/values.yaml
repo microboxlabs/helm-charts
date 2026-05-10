@@ -243,10 +243,33 @@ connectivity:
     args: []
     port: 6434       # local port the sidecar exposes.
 
-# NetworkPolicy egress allowlist. T07 implements the template.
-# Defaults off — many clusters' CNIs don't enforce NetworkPolicy.
+# NetworkPolicy egress allowlist. Defaults off — many CNIs silently
+# ignore NetworkPolicy; defaulting on would create false confidence.
+# Standard NetworkPolicy is L3/L4 only (no FQDN); pair with a CNI policy
+# (Cilium/Calico) if you need hostname-based egress restriction.
 networkPolicy:
   enabled: false
+  # DNS namespace — mandatory egress when the policy is enabled.
+  # Override if your cluster runs CoreDNS elsewhere.
+  dnsNamespace: kube-system
+  # Public HTTPS egress (Anthropic, OpenAI, telemetry sinks).
+  # Permits 0.0.0.0/0:443 EXCEPT RFC1918 — internal services stay locked.
+  allowPublicHttps: true
+  # Coordinador (PG / pgbouncer / PostgREST). MUST be set explicitly;
+  # empty CIDR list = no Coordinador access (fail-closed).
+  coordinador:
+    cidrs: []                  # e.g. ["10.10.0.0/16"]
+    ports:
+      - port: 6432             # pgbouncer
+        protocol: TCP
+      - port: 5432             # direct PG fallback
+        protocol: TCP
+  # Free-form extra egress rules. Each entry is a full
+  # NetworkPolicyEgressRule (`to`, `ports`).
+  extraEgress: []
+  # Ingress: default allow same-namespace Pods (Service traffic).
+  ingress:
+    enabled: true
 
 # Observability. T09 adds the ServiceMonitor template.
 # `/metrics` endpoint lands in plan 13 phase 5 (the harness side);
