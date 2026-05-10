@@ -60,3 +60,80 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Credentials Secret name (chart-managed). Returns the same fullname-suffixed
+Secret used when any credential takes the literal-value path. Per-credential
+helpers below pick this name OR the user-provided `existingSecret`.
+*/}}
+{{- define "miot-harness.credentialsSecretName" -}}
+{{- printf "%s-credentials" (include "miot-harness.fullname" .) }}
+{{- end }}
+
+{{/*
+Whether to render the chart-managed credentials Secret. True iff at least
+one credential is supplied as a literal value AND no existingSecret is set
+for it. Kept as a helper so secret.yaml's render-gate and deployment.yaml's
+secretKeyRef gates stay in lockstep.
+*/}}
+{{- define "miot-harness.shouldRenderCredentialsSecret" -}}
+{{- if or
+      (and (not .Values.nexo.existingSecret) .Values.nexo.dsn)
+      (and (not .Values.anthropic.existingSecret) .Values.anthropic.apiKey)
+      (and (not .Values.openai.existingSecret) .Values.openai.apiKey)
+}}true{{- end }}
+{{- end }}
+
+{{/*
+Per-credential Secret name + key. Each helper returns the `existingSecret`
+when set, else the chart-managed Secret name + canonical key. Mirrors
+miot-calendar's `databaseSecretName` pattern.
+*/}}
+
+{{- define "miot-harness.nexoSecretName" -}}
+{{- if .Values.nexo.existingSecret }}
+{{- .Values.nexo.existingSecret }}
+{{- else }}
+{{- include "miot-harness.credentialsSecretName" . }}
+{{- end }}
+{{- end }}
+
+{{- define "miot-harness.nexoSecretKey" -}}
+{{- if .Values.nexo.existingSecret }}
+{{- .Values.nexo.existingSecretKey | default "dsn" }}
+{{- else }}
+{{- "nexo-dsn" }}
+{{- end }}
+{{- end }}
+
+{{- define "miot-harness.anthropicSecretName" -}}
+{{- if .Values.anthropic.existingSecret }}
+{{- .Values.anthropic.existingSecret }}
+{{- else }}
+{{- include "miot-harness.credentialsSecretName" . }}
+{{- end }}
+{{- end }}
+
+{{- define "miot-harness.anthropicSecretKey" -}}
+{{- if .Values.anthropic.existingSecret }}
+{{- .Values.anthropic.existingSecretKey | default "api-key" }}
+{{- else }}
+{{- "anthropic-api-key" }}
+{{- end }}
+{{- end }}
+
+{{- define "miot-harness.openaiSecretName" -}}
+{{- if .Values.openai.existingSecret }}
+{{- .Values.openai.existingSecret }}
+{{- else }}
+{{- include "miot-harness.credentialsSecretName" . }}
+{{- end }}
+{{- end }}
+
+{{- define "miot-harness.openaiSecretKey" -}}
+{{- if .Values.openai.existingSecret }}
+{{- .Values.openai.existingSecretKey | default "api-key" }}
+{{- else }}
+{{- "openai-api-key" }}
+{{- end }}
+{{- end }}

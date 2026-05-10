@@ -56,16 +56,16 @@ spec:
               value: {{ .Values.defaultUserId | quote }}
             - name: MIOT_HARNESS_REQUEST_ID_HEADER
               value: {{ .Values.requestIdHeader | quote }}
-            # Nexo (Coordinador) — DSN precedence: existingSecret > literal > unset
-            {{- if .Values.nexo.existingSecret }}
+            # Nexo (Coordinador) DSN. Always projected via secretKeyRef so the
+            # value never appears in `kubectl describe pod`. Helper picks the
+            # right Secret: user-provided `existingSecret`, or the chart-managed
+            # one rendered by templates/secret.yaml when `nexo.dsn` is a literal.
+            {{- if or .Values.nexo.existingSecret .Values.nexo.dsn }}
             - name: MIOT_HARNESS_NEXO_DSN
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.nexo.existingSecret }}
-                  key: {{ .Values.nexo.existingSecretKey | default "dsn" }}
-            {{- else if .Values.nexo.dsn }}
-            - name: MIOT_HARNESS_NEXO_DSN
-              value: {{ .Values.nexo.dsn | quote }}
+                  name: {{ include "miot-harness.nexoSecretName" . }}
+                  key: {{ include "miot-harness.nexoSecretKey" . }}
             {{- end }}
             - name: MIOT_HARNESS_NEXO_DB_ALIAS
               value: {{ .Values.nexo.dbAlias | quote }}
@@ -95,9 +95,23 @@ spec:
               value: {{ .Values.nexo.models.critic | quote }}
             - name: MIOT_HARNESS_NEXO_SUMMARIZER_MODEL
               value: {{ .Values.nexo.models.summarizer | quote }}
-            # Provider API keys — T06 wires the secret refs.
-            # Until then, keys are unset unless the user supplies an
-            # existingSecret out-of-band and references it via env injection.
+            # Provider API keys. Same secretKeyRef pattern as MIOT_HARNESS_NEXO_DSN.
+            # Env-var names are unprefixed because miot_harness/config.py reads them
+            # via AliasChoices("ANTHROPIC_API_KEY", ...) / ("OPENAI_API_KEY", ...).
+            {{- if or .Values.anthropic.existingSecret .Values.anthropic.apiKey }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "miot-harness.anthropicSecretName" . }}
+                  key: {{ include "miot-harness.anthropicSecretKey" . }}
+            {{- end }}
+            {{- if or .Values.openai.existingSecret .Values.openai.apiKey }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "miot-harness.openaiSecretName" . }}
+                  key: {{ include "miot-harness.openaiSecretKey" . }}
+            {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
