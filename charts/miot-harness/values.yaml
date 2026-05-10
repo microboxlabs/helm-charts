@@ -235,13 +235,47 @@ openai:
 # Connectivity to Coordinador. The tunnel sidecar is a dev convenience
 # (kubectl port-forward inside the Pod); production should reach
 # Coordinador via VNet peering / Private Link / PostgREST instead.
-# T08 wires this; T05 lays the values surface only.
+#
+# When `tunnel.enabled: true`, set `nexo.dsn` (or the existingSecret
+# behind it) to point at `localhost:<tunnel.port>` — the harness reads
+# the same DSN env var either way; it doesn't know there's a sidecar.
 connectivity:
   tunnel:
     enabled: false
-    image: ""        # e.g. bitnami/kubectl:latest
-    args: []
-    port: 6434       # local port the sidecar exposes.
+    image: bitnami/kubectl:1.30
+    command:
+      - sh
+      - -c
+    # Default args: port-forward loop that auto-restarts on disconnect.
+    # Replace `coordinador/pgbouncer` and ports with your cluster's
+    # service. The first port is the LOCAL port (matches `tunnel.port`
+    # below); the second is the REMOTE service port.
+    args:
+      - |
+        while true; do
+          kubectl port-forward -n coordinador svc/pgbouncer 6434:6432 \
+            --address 127.0.0.1 || true
+          sleep 5
+        done
+    # Local port the sidecar exposes inside the Pod.
+    port: 6434
+    # Secret holding a kubeconfig granting port-forward rights on the
+    # Coordinador cluster. Created out-of-band; chart only references it.
+    # Empty = sidecar runs without a kubeconfig (relies on in-cluster
+    # ServiceAccount, which only works if the harness's SA has the rights
+    # — usually not the case across clusters).
+    kubeconfigSecret: ""
+    kubeconfigSecretKey: "kubeconfig"
+    # Sidecar readinessProbe — MANDATORY. TCP socket on the local port;
+    # the sidecar reports ready only when port-forward is established.
+    readinessProbe:
+      tcpSocket:
+        port: 6434
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 2
+      failureThreshold: 6
+    resources: {}
 
 # NetworkPolicy egress allowlist. Defaults off — many CNIs silently
 # ignore NetworkPolicy; defaulting on would create false confidence.
