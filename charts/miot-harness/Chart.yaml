@@ -1,0 +1,20 @@
+apiVersion: v2
+name: miot-harness
+description: A Helm chart for MIOT Harness — multi-agent backend (FastAPI) for ASK MIOT
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - modulariot
+  - harness
+  - ai
+  - agents
+  - fastapi
+  - python
+home: https://github.com/microboxlabs/modulariot
+sources:
+  - https://github.com/microboxlabs/modulariot
+maintainers:
+  - name: MicroboxLabs
+    email: dev@microboxlabs.com
+    url: https://microboxlabs.com

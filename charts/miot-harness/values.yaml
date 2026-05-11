@@ -1,0 +1,335 @@
+# Default values for miot-harness.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+replicaCount: 1
+
+# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+image:
+  repository: ghcr.io/microboxlabs/miot-harness
+  # This sets the pull policy for images.
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+# This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+imagePullSecrets: []
+# This is to override the chart name.
+nameOverride: ""
+fullnameOverride: ""
+
+# This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# This is for setting Kubernetes Annotations to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+podAnnotations: {}
+# This is for setting Kubernetes Labels to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# Container-level security context. Matches the harness Dockerfile:
+# the image runs as UID 65534 (`nobody`) on a read-only rootfs with only
+# /app/.miot-workspace writable. Defaults below are safe for any
+# pod-security policy ("restricted").
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  runAsGroup: 65534
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+
+# This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
+service:
+  # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+  type: ClusterIP
+  # Matches Dockerfile EXPOSE 8000 (uvicorn default).
+  port: 8000
+
+# This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# -- Expose the service via gateway-api HTTPRoute
+# Requires Gateway API resources and suitable controller installed within the cluster
+# (see: https://gateway-api.sigs.k8s.io/guides/)
+httpRoute:
+  # HTTPRoute enabled.
+  enabled: false
+  # HTTPRoute annotations.
+  annotations: {}
+  # Which Gateways this Route is attached to.
+  parentRefs:
+  - name: gateway
+    sectionName: http
+    # namespace: default
+  # Hostnames matching HTTP header.
+  hostnames:
+  - chart-example.local
+  # List of rules and filters applied.
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /headers
+  #   filters:
+  #   - type: RequestHeaderModifier
+  #     requestHeaderModifier:
+  #       set:
+  #       - name: My-Overwrite-Header
+  #         value: this-is-the-only-value
+  #       remove:
+  #       - User-Agent
+  # - matches:
+  #   - path:
+  #       type: PathPrefix
+  #       value: /echo
+  #     headers:
+  #     - name: version
+  #       value: v2
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# Liveness probe MUST NOT depend on Nexo state — the process is "live"
+# as long as it serves /health (returns 200 even when Nexo is disabled).
+# Readiness probe hits /health/ready, which the platform may consider
+# not-ready when Nexo is required but not yet enabled. See plan 13
+# 05-observability-and-health.md.
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# Additional volumes on the output Deployment definition.
+volumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# =============================================================================
+# Harness configuration — every key below maps 1:1 to a `MIOT_HARNESS_*`
+# env var read by `miot_harness/config.py`. Plan:
+# .cursor/plans/ai-first/13-server-deployment/helm/02-values-surface.md
+# =============================================================================
+
+# Process / runtime contract
+env: "local"               # MIOT_HARNESS_ENV — set per environment.
+defaultTenantId: "demo-tenant"
+defaultUserId: "demo-user"
+logLevel: "INFO"           # DEBUG | INFO | WARNING | ERROR | CRITICAL
+requestIdHeader: "x-request-id"
+
+# Nexo / Coordinador integration. Mirrors miot-calendar's
+# `postgresql.external.*` nesting style.
+#
+# Connectivity options (see plan 13 / 04-coordinador-connectivity.md):
+#   * `nexo.dsn`              — literal DSN (dev/local convenience)
+#   * `nexo.existingSecret`   — reference a Secret holding the DSN (production)
+#   * neither set             — Nexo disabled at boot, harness still healthy
+nexo:
+  dsn: ""                              # NEVER commit a real DSN here.
+  existingSecret: ""                   # Name of K8s Secret with the DSN.
+  existingSecretKey: "dsn"             # Field within that Secret.
+  dbAlias: "coordinador-dev"
+  applicationName: "miot-harness"      # Visible in pg_stat_activity.
+  tenantLock: "mintral"                # Single-tenant pin (plan 13 v1).
+  searchPath: "nexo"
+  freshnessWarnMinutes: 30             # Soft gate.
+  freshnessRefuseMinutes: 240          # Hard gate (refuses to register tools).
+  maxTurns: 8
+  criticEnabled: false
+  supervisorMode: "rule"               # `rule` or `llm`.
+  models:
+    filterExpert: "claude-haiku-4-5"
+    analyst: "claude-sonnet-4-6"
+    synthesizer: "claude-sonnet-4-6"
+    critic: "claude-sonnet-4-6"
+    summarizer: "claude-haiku-4-5"
+
+# Provider API keys. Three modes (in precedence order):
+#   1. existingSecret non-empty     -> chart references the Secret.
+#   2. apiKey non-empty             -> chart creates a Secret (T06).
+#   3. both empty                   -> env var unset, harness boots
+#                                       without that provider.
+# Memory: never commit a real API key as a default.
+anthropic:
+  existingSecret: ""
+  existingSecretKey: "api-key"
+  apiKey: ""
+openai:
+  existingSecret: ""
+  existingSecretKey: "api-key"
+  apiKey: ""
+
+# Connectivity to Coordinador. The tunnel sidecar is a dev convenience
+# (kubectl port-forward inside the Pod); production should reach
+# Coordinador via VNet peering / Private Link / PostgREST instead.
+#
+# When `tunnel.enabled: true`, set `nexo.dsn` (or the existingSecret
+# behind it) to point at `localhost:<tunnel.port>` — the harness reads
+# the same DSN env var either way; it doesn't know there's a sidecar.
+connectivity:
+  tunnel:
+    enabled: false
+    image: bitnami/kubectl:1.30
+    command:
+      - sh
+      - -c
+    # Default args: port-forward loop that auto-restarts on disconnect.
+    # Replace `coordinador/pgbouncer` and ports with your cluster's
+    # service. The first port is the LOCAL port (matches `tunnel.port`
+    # below); the second is the REMOTE service port.
+    args:
+      - |
+        while true; do
+          kubectl port-forward -n coordinador svc/pgbouncer 6434:6432 \
+            --address 127.0.0.1 || true
+          sleep 5
+        done
+    # Local port the sidecar exposes inside the Pod.
+    port: 6434
+    # Secret holding a kubeconfig granting port-forward rights on the
+    # Coordinador cluster. Created out-of-band; chart only references it.
+    # Empty = sidecar runs without a kubeconfig (relies on in-cluster
+    # ServiceAccount, which only works if the harness's SA has the rights
+    # — usually not the case across clusters).
+    kubeconfigSecret: ""
+    kubeconfigSecretKey: "kubeconfig"
+    # Sidecar readinessProbe — MANDATORY. TCP socket on the local port;
+    # the sidecar reports ready only when port-forward is established.
+    readinessProbe:
+      tcpSocket:
+        port: 6434
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 2
+      failureThreshold: 6
+    resources: {}
+
+# NetworkPolicy egress allowlist. Defaults off — many CNIs silently
+# ignore NetworkPolicy; defaulting on would create false confidence.
+# Standard NetworkPolicy is L3/L4 only (no FQDN); pair with a CNI policy
+# (Cilium/Calico) if you need hostname-based egress restriction.
+networkPolicy:
+  enabled: false
+  # DNS namespace — mandatory egress when the policy is enabled.
+  # Override if your cluster runs CoreDNS elsewhere.
+  dnsNamespace: kube-system
+  # Public HTTPS egress (Anthropic, OpenAI, telemetry sinks).
+  # Permits 0.0.0.0/0:443 EXCEPT RFC1918 — internal services stay locked.
+  allowPublicHttps: true
+  # Coordinador (PG / pgbouncer / PostgREST). MUST be set explicitly;
+  # empty CIDR list = no Coordinador access (fail-closed).
+  coordinador:
+    cidrs: []                  # e.g. ["10.10.0.0/16"]
+    ports:
+      - port: 6432             # pgbouncer
+        protocol: TCP
+      - port: 5432             # direct PG fallback
+        protocol: TCP
+  # Free-form extra egress rules. Each entry is a full
+  # NetworkPolicyEgressRule (`to`, `ports`).
+  extraEgress: []
+  # Ingress: default allow same-namespace Pods (Service traffic).
+  ingress:
+    enabled: true
+
+# Observability. T09 adds the ServiceMonitor template.
+# `/metrics` endpoint lands in plan 13 phase 5 (the harness side);
+# the chart is forward-compatible — toggling on without the endpoint
+# is a no-op surface for ops.
+metrics:
+  enabled: false
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+    # release: prometheus
+
+# Workspace persistence. The chart ALWAYS mounts a writable volume at
+# `/app/.miot-workspace` (required because the container runs with
+# readOnlyRootFilesystem=true). Default emptyDir survives container
+# restarts but not pod rescheduling; opt-in PVC for run_store durability.
+persistence:
+  enabled: false
+  # If set, chart skips PVC creation and references this claim directly.
+  # Lets operators bring their own PVC (StatefulSet-style claim management,
+  # cluster-shared storage, etc.).
+  existingClaim: ""
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+  annotations: {}

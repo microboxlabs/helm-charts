@@ -34,3 +34,7 @@ dependencies:
     version: "0.1.0"
     repository: "file://../miot-modulith"
     condition: miot-modulith.enabled
+  - name: miot-harness
+    version: "0.1.0"
+    repository: "file://../miot-harness"
+    condition: miot-harness.enabled

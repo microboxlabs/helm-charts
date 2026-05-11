@@ -1,0 +1,62 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "miot-harness.fullname" . }}
+  labels:
+    {{- include "miot-harness.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "miot-harness.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Egress
+    {{- if .Values.networkPolicy.ingress.enabled }}
+    - Ingress
+    {{- end }}
+  egress:
+    # 1. DNS — mandatory whenever the policy is enabled.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.dnsNamespace }}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    {{- if .Values.networkPolicy.allowPublicHttps }}
+    # 2. Public HTTPS — Anthropic, OpenAI, telemetry. Excludes RFC1918
+    # so the rule never broadens internal access.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+    {{- end }}
+    {{- if .Values.networkPolicy.coordinador.cidrs }}
+    # 3. Coordinador — one rule per operator-supplied CIDR.
+    {{- range .Values.networkPolicy.coordinador.cidrs }}
+    - to:
+        - ipBlock:
+            cidr: {{ . }}
+      ports:
+        {{- toYaml $.Values.networkPolicy.coordinador.ports | nindent 8 }}
+    {{- end }}
+    {{- end }}
+    {{- with .Values.networkPolicy.extraEgress }}
+    # 4. Extra egress rules.
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if .Values.networkPolicy.ingress.enabled }}
+  ingress:
+    # Same-namespace Pods (Service traffic).
+    - from:
+        - podSelector: {}
+  {{- end }}
+{{- end }}
