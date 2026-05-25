@@ -493,6 +493,32 @@ entries:
     urls:
     - https://github.com/microboxlabs/helm-charts/releases/download/miot-docs-0.1.0/miot-docs-0.1.0.tgz
     version: 0.1.0
+  miot-harness:
+  - apiVersion: v2
+    appVersion: 0.1.0
+    created: "2026-05-25T16:07:11.492963468Z"
+    description: A Helm chart for MIOT Harness — multi-agent backend (FastAPI) for
+      ASK MIOT
+    digest: 40a7f39a07ff45634a778cb5cbfd45e1c2c910f1faca9a359c9bce91a7c3ccbf
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - modulariot
+    - harness
+    - ai
+    - agents
+    - fastapi
+    - python
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-harness
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-harness-0.1.0/miot-harness-0.1.0.tgz
+    version: 0.1.0
   miot-modulith:
   - apiVersion: v2
     appVersion: 0.1.0
@@ -759,4 +785,4 @@ entries:
     urls:
     - quarkus-sse/quarkus-sse-0.1.0.tgz
     version: 0.1.0
-generated: "2026-04-08T12:45:17.321790679Z"
+generated: "2026-05-25T16:07:11.623304382Z"
