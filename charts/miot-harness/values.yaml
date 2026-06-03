@@ -190,6 +190,20 @@ defaultUserId: "demo-user"
 logLevel: "INFO"           # DEBUG | INFO | WARNING | ERROR | CRITICAL
 requestIdHeader: "x-request-id"
 
+# Auth0 RS256 defense-in-depth on /runs* (#522 / modulariot #528).
+# Off by default so unit tests and local dev keep the legacy
+# unauthenticated surface. When enabled, the harness re-verifies the
+# same RS256 token the Quarkus front door already validated. Field
+# names mirror quarkus-srv's `auth.rs256*` block so a single set of
+# Auth0 values renders both services. issuer/JWKS/audience are public —
+# keep them as plain values, NOT a Secret. The harness lifespan fails
+# fast (pod crashes at startup) if `enabled: true` with any field unset.
+auth:
+  enabled: false
+  issuer: ""                 # AUTH0_ISSUER — exact `iss` claim to require.
+  jwksUrl: ""                # AUTH0_JWKS_URL — Auth0 well-known JWKS.
+  rs256Audience: ""          # AUTH0_RS256_AUDIENCE — required `aud` value.
+
 # Nexo / Coordinador integration. Mirrors miot-calendar's
 # `postgresql.external.*` nesting style.
 #
