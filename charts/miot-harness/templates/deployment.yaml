@@ -56,6 +56,21 @@ spec:
               value: {{ .Values.defaultUserId | quote }}
             - name: MIOT_HARNESS_REQUEST_ID_HEADER
               value: {{ .Values.requestIdHeader | quote }}
+            # Auth0 RS256 defense-in-depth on /runs* (#522 / modulariot #528).
+            # Off by default; when enabled, the harness re-verifies the same
+            # RS256 token Quarkus already validated. issuer/JWKS/audience are
+            # public, so they ride plain values (no Secret). The lifespan
+            # fails fast if auth.enabled is true with any field unset.
+            - name: MIOT_HARNESS_AUTH_ENABLED
+              value: {{ .Values.auth.enabled | quote }}
+            {{- if .Values.auth.enabled }}
+            - name: AUTH0_ISSUER
+              value: {{ .Values.auth.issuer | quote }}
+            - name: AUTH0_JWKS_URL
+              value: {{ .Values.auth.jwksUrl | quote }}
+            - name: AUTH0_RS256_AUDIENCE
+              value: {{ .Values.auth.rs256Audience | quote }}
+            {{- end }}
             # Nexo (Coordinador) DSN. Always projected via secretKeyRef so the
             # value never appears in `kubectl describe pod`. Helper picks the
             # right Secret: user-provided `existingSecret`, or the chart-managed
