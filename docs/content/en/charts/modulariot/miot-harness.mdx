@@ -1,6 +1,8 @@
 # miot-harness Chart
 
-A Helm chart for deploying **MIOT Harness** — the multi-agent FastAPI backend that powers ASK MIOT (`miot_harness/api/server.py`). Runs in its own cluster (separate from Coordinador) and reaches Coordinador via private connectivity (VNet peering, Private Link, PostgREST, or a `kubectl port-forward` sidecar for dev).
+A Helm chart for deploying **MIOT Harness** — the multi-agent FastAPI backend that powers ASK MIOT (`miot_harness/api/server.py`). Runs in its own cluster (separate from the datasource DB) and reaches it via private connectivity (VNet peering, Private Link, PostgREST, or a `kubectl port-forward` sidecar for dev).
+
+Since chart **0.3.0** the configuration surface follows the harness's datasource-agnostic refactor ([modulariot#604](https://github.com/microboxlabs/modulariot/pull/604)): the core no longer hardcodes Nexo. `datasource.kind` selects a `DataSourceProvider` (currently `nexo`), and domain defaults — tenant lock, freshness gates — live in the provider's profile, not in the chart. If you're upgrading from 0.2.x, see [Migrating to 0.3.0](#migrating-to-030).
 
 ## Overview
 
@@ -8,11 +10,20 @@ The miot-harness chart deploys:
 
 - **FastAPI process** on `:8000`, exposing `/health` and `/runs`.
 - Read-only-rootfs container, runs as UID 65534.
-- **Three credential channels** (Anthropic, OpenAI, Coordinador DSN) with `existingSecret`-first precedence and a chart-managed Secret fallback for dev.
-- **Optional NetworkPolicy** (default off) — DNS, public HTTPS, Coordinador CIDR allowlist.
+- **Credential channels** (datasource DSN, Anthropic / OpenAI / Google API keys, Langfuse keys, identity signing key) with `existingSecret`-first precedence and a chart-managed Secret fallback for dev. All projected via `secretKeyRef`, never literal Pod env values.
+- **Optional NetworkPolicy** (default off) — DNS, public HTTPS, datasource-DB CIDR allowlist.
 - **Optional tunnel sidecar** (default off) — `kubectl port-forward` inside the Pod for dev environments.
 - **Optional ServiceMonitor** for Prometheus-Operator scraping of `/metrics`.
 - **Optional PVC** for `run_store` survivability (defaults to `emptyDir`).
+
+## Configuration conventions
+
+The chart keeps your values files slim with two rules:
+
+1. **Keys with a concrete default** (e.g. `env`, `datasource.kind`) are always rendered as env vars.
+2. **Keys defaulting to `null`** are rendered **only when you set them**. Unset means "use the harness built-in default" (or the datasource provider's profile default). The chart never re-states application defaults, so it can't drift from them — and your environment values file only contains what actually differs.
+
+Explicit falsy overrides are honored: `agents.synthesizerStream: false` and `agents.synthesizerThinkingBudget: 0` render `"false"` / `"0"`.
 
 ## Prerequisites
 
@@ -41,6 +52,28 @@ helm install platform microboxlabs/modulariot \
 ```
 
 The umbrella defaults `miot-harness.enabled: false` so existing platform installs don't suddenly get an agent runtime — opt in per environment.
+
+## Migrating to 0.3.0
+
+Chart 0.3.0 tracks the harness env-var break in [modulariot#604](https://github.com/microboxlabs/modulariot/pull/604) (`MIOT_HARNESS_NEXO_*` → `MIOT_HARNESS_DATASOURCE_*` / `MIOT_HARNESS_AGENTS_*`). Deploy it together with a harness image that includes that refactor — the new env vars have **no aliases** in older images, and vice versa.
+
+Values renames (old `nexo.*` block → new blocks):
+
+| 0.2.x value | 0.3.0 value | Notes |
+|-------------|-------------|-------|
+| `nexo.dsn` | `datasource.dsn` | Chart-managed Secret key renamed `nexo-dsn` → `datasource-dsn` |
+| `nexo.existingSecret` / `existingSecretKey` | `datasource.existingSecret` / `existingSecretKey` | |
+| `nexo.applicationName` | `datasource.applicationName` | |
+| `nexo.tenantLock` | `datasource.tenantLock` | Now `null` by default — the provider profile supplies `mintral`. Set only to override. |
+| `nexo.freshnessWarnMinutes` / `freshnessRefuseMinutes` | `datasource.freshnessWarnMinutes` / `freshnessRefuseMinutes` | Now `null` by default — profile supplies 30 / 240. |
+| `nexo.maxTurns` | `agents.maxTurns` | `null` → 8 |
+| `nexo.criticEnabled` | `agents.criticEnabled` | `null` → false |
+| `nexo.supervisorMode` | `agents.supervisorMode` | `null` → `rule` |
+| `nexo.models.*` | `agents.models.*` | `null` → harness defaults |
+| `nexo.searchPath` | `nexo.searchPath` (unchanged path) | Provider-private; `null` → `nexo` |
+| `nexo.dbAlias` | — **removed** | `MIOT_HARNESS_NEXO_DB_ALIAS` no longer exists upstream |
+
+New in 0.3.0: `datasource.kind`, `nexo.explainCostThreshold`, `agents.synthesizerStream`, `agents.synthesizerThinkingBudget`, `intentRouter.*`, `conversationTokenBudget`, `identity.*`, `observability.*` (OTel + Langfuse), `allowDebugTenants`, `google.*`, `extraEnv`, `extraEnvFrom`.
 
 ## Parameters
 
@@ -76,12 +109,14 @@ The umbrella defaults `miot-harness.enabled: false` so existing platform install
 | `serviceAccount.annotations` | SA annotations (e.g. Workload Identity) | `{}` |
 | `serviceAccount.name` | SA name (autogenerated if empty and `create=true`) | `""` |
 
-### Volumes (free-form)
+### Volumes / env (free-form)
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `volumes` | Extra volumes (appended to the chart's required workspace volume) | `[]` |
 | `volumeMounts` | Extra volumeMounts on the app container | `[]` |
+| `extraEnv` | Raw `EnvVar` entries appended to the container (escape hatch for knobs the chart doesn't model) | `[]` |
+| `extraEnvFrom` | Raw `envFrom` sources (`configMapRef` / `secretRef`) | `[]` |
 
 ### Service
 
@@ -116,7 +151,7 @@ Defaults match the harness Dockerfile (UID 65534, read-only rootfs). Aligned wit
 
 ### Probes
 
-Liveness uses `/health` (always 200 once the process is up). Readiness uses `/health/ready` (the platform may treat the Pod not-ready until Nexo is enabled, depending on plan-13 phase 5 wiring).
+Liveness uses `/health` (always 200 once the process is up — it must NOT depend on datasource state). Readiness uses `/health/ready`.
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
@@ -145,7 +180,7 @@ Liveness uses `/health` (always 200 once the process is up). Readiness uses `/he
 
 ### Process / runtime
 
-Each setting maps 1:1 to a `MIOT_HARNESS_*` env var read by `miot_harness/config.py`.
+Always rendered. Each setting maps 1:1 to an env var read by `miot_harness/config.py`.
 
 | Parameter | Description | Default | Env var |
 |-----------|-------------|---------|---------|
@@ -154,49 +189,113 @@ Each setting maps 1:1 to a `MIOT_HARNESS_*` env var read by `miot_harness/config
 | `defaultUserId` | Default user context | `demo-user` | `MIOT_HARNESS_DEFAULT_USER_ID` |
 | `logLevel` | Log level (DEBUG / INFO / WARNING / ERROR / CRITICAL) | `INFO` | `MIOT_HARNESS_LOG_LEVEL` |
 | `requestIdHeader` | HTTP header name for request ID propagation | `x-request-id` | `MIOT_HARNESS_REQUEST_ID_HEADER` |
+| `allowDebugTenants` | Comma-separated tenant ids allowed to request `debug=true` runs (debug surfaces real tenant data over SSE). Empty = deny all — keep empty in prod | `""` (not rendered) | `MIOT_HARNESS_ALLOW_DEBUG_TENANTS` |
 
-### Nexo (Coordinador integration)
+### Auth0 RS256 (front-door re-verification)
 
-DSN precedence: `nexo.existingSecret` wins over `nexo.dsn`. Either way, the env var is projected via `secretKeyRef` — never as a literal `value:` (closes a leak vector that would otherwise put credentials into `kubectl describe pod` output).
+Defense-in-depth on `/runs*`: when enabled, the harness re-verifies the same RS256 token the Quarkus front door already validated. The harness fails fast at boot (`validate_auth_config`) if `enabled: true` with any field unset. The issuer / JWKS URL / audience are public values, so they ride plain env vars — no Secret.
 
 | Parameter | Description | Default | Env var |
 |-----------|-------------|---------|---------|
-| `nexo.dsn` | Literal DSN (chart creates a Secret if non-empty) | `""` | `MIOT_HARNESS_NEXO_DSN` |
-| `nexo.existingSecret` | Reference an out-of-band Secret holding the DSN | `""` | (same) |
-| `nexo.existingSecretKey` | Field within that Secret | `dsn` | (same) |
-| `nexo.dbAlias` | DB alias (logged in `pg_stat_activity`) | `coordinador-dev` | `MIOT_HARNESS_NEXO_DB_ALIAS` |
-| `nexo.applicationName` | Postgres application_name | `miot-harness` | `MIOT_HARNESS_NEXO_APPLICATION_NAME` |
-| `nexo.tenantLock` | Single-tenant pin | `mintral` | `MIOT_HARNESS_NEXO_TENANT_LOCK` |
-| `nexo.searchPath` | Postgres search_path | `nexo` | `MIOT_HARNESS_NEXO_SEARCH_PATH` |
-| `nexo.freshnessWarnMinutes` | Soft freshness gate | `30` | `MIOT_HARNESS_NEXO_FRESHNESS_WARN_MINUTES` |
-| `nexo.freshnessRefuseMinutes` | Hard freshness gate (refuses to register tools) | `240` | `MIOT_HARNESS_NEXO_FRESHNESS_REFUSE_MINUTES` |
-| `nexo.maxTurns` | Per-run turn cap | `8` | `MIOT_HARNESS_NEXO_MAX_TURNS` |
-| `nexo.criticEnabled` | Enable the critic agent | `false` | `MIOT_HARNESS_NEXO_CRITIC_ENABLED` |
-| `nexo.supervisorMode` | `rule` or `llm` | `rule` | `MIOT_HARNESS_NEXO_SUPERVISOR_MODE` |
-| `nexo.models.filterExpert` | Model for filter-expert agent | `claude-haiku-4-5` | `MIOT_HARNESS_NEXO_FILTER_EXPERT_MODEL` |
-| `nexo.models.analyst` | Model for analyst agent | `claude-sonnet-4-6` | `MIOT_HARNESS_NEXO_ANALYST_MODEL` |
-| `nexo.models.synthesizer` | Model for synthesizer agent | `claude-sonnet-4-6` | `MIOT_HARNESS_NEXO_SYNTHESIZER_MODEL` |
-| `nexo.models.critic` | Model for critic agent | `claude-sonnet-4-6` | `MIOT_HARNESS_NEXO_CRITIC_MODEL` |
-| `nexo.models.summarizer` | Model for summarizer agent | `claude-haiku-4-5` | `MIOT_HARNESS_NEXO_SUMMARIZER_MODEL` |
+| `auth.enabled` | Enable JWT re-verification | `false` | `MIOT_HARNESS_AUTH_ENABLED` |
+| `auth.issuer` | Exact `iss` claim to require (e.g. `https://<your-tenant>.auth0.com/`) | `""` | `AUTH0_ISSUER` |
+| `auth.jwksUrl` | Auth0 well-known JWKS URL | `""` | `AUTH0_JWKS_URL` |
+| `auth.rs256Audience` | Required `aud` — the Auth0 client id of the web app whose token the front door forwards | `""` | `AUTH0_RS256_AUDIENCE` |
+
+### Datasource
+
+The datasource seam. `kind` selects the `DataSourceProvider` (registry currently ships `nexo` — the Coordinador Citus/Postgres DB). DSN precedence: `existingSecret` wins over `dsn`; either way the env var is projected via `secretKeyRef`. With neither set, the datasource is disabled at boot and the harness stays healthy serving non-data runs.
+
+| Parameter | Description | Default | Env var |
+|-----------|-------------|---------|---------|
+| `datasource.kind` | Provider registry key | `nexo` | `MIOT_HARNESS_DATASOURCE_KIND` |
+| `datasource.dsn` | Literal DSN (chart creates a Secret if non-empty) | `""` | `MIOT_HARNESS_DATASOURCE_DSN` |
+| `datasource.existingSecret` | Out-of-band Secret holding the DSN | `""` | (same) |
+| `datasource.existingSecretKey` | Field within that Secret | `dsn` | (same) |
+| `datasource.applicationName` | Postgres `application_name` | `miot-harness` | `MIOT_HARNESS_DATASOURCE_APPLICATION_NAME` |
+| `datasource.tenantLock` | Hard tenant pin for every datasource tool call. Must be non-empty if set (the harness refuses to boot on `""`). Must match the tenant the front door injects (`X-Miot-Tenant-Client-Id`) | `null` → profile default (nexo: `mintral`) | `MIOT_HARNESS_DATASOURCE_TENANT_LOCK` |
+| `datasource.freshnessWarnMinutes` | Soft snapshot-freshness gate, minutes. Explicit `0` honored | `null` → profile default (nexo: 30) | `MIOT_HARNESS_DATASOURCE_FRESHNESS_WARN_MINUTES` |
+| `datasource.freshnessRefuseMinutes` | Hard gate — disables the datasource when older | `null` → profile default (nexo: 240) | `MIOT_HARNESS_DATASOURCE_FRESHNESS_REFUSE_MINUTES` |
+
+### Nexo provider-private knobs
+
+Postgres concepts that stayed Nexo's after the refactor (loaded by `integrations/nexo/settings.py`). Ignored by other datasource kinds.
+
+| Parameter | Description | Default | Env var |
+|-----------|-------------|---------|---------|
+| `nexo.searchPath` | Schema holding the `fn_dx_*` functions | `null` → `nexo` | `MIOT_HARNESS_NEXO_SEARCH_PATH` |
+| `nexo.explainCostThreshold` | EXPLAIN plan-cost ceiling for composable primitives | `null` → `10000.0` | `MIOT_HARNESS_NEXO_EXPLAIN_COST_THRESHOLD` |
+
+### Agents
+
+All `null` by default — the harness's built-in defaults apply until you override.
+
+| Parameter | Description | Harness default | Env var |
+|-----------|-------------|-----------------|---------|
+| `agents.maxTurns` | Per-run turn cap | `8` | `MIOT_HARNESS_AGENTS_MAX_TURNS` |
+| `agents.criticEnabled` | Enable the critic agent | `false` | `MIOT_HARNESS_AGENTS_CRITIC_ENABLED` |
+| `agents.supervisorMode` | `rule` or `llm` | `rule` | `MIOT_HARNESS_AGENTS_SUPERVISOR_MODE` |
+| `agents.models.filterExpert` | Filter-expert model | `claude-haiku-4-5` | `MIOT_HARNESS_AGENTS_FILTER_EXPERT_MODEL` |
+| `agents.models.analyst` | Analyst model | `claude-sonnet-4-6` | `MIOT_HARNESS_AGENTS_ANALYST_MODEL` |
+| `agents.models.synthesizer` | Synthesizer model | `claude-sonnet-4-6` | `MIOT_HARNESS_AGENTS_SYNTHESIZER_MODEL` |
+| `agents.models.critic` | Critic model | `claude-sonnet-4-6` | `MIOT_HARNESS_AGENTS_CRITIC_MODEL` |
+| `agents.models.summarizer` | Summarizer model | `claude-haiku-4-5` | `MIOT_HARNESS_AGENTS_SUMMARIZER_MODEL` |
+| `agents.synthesizerStream` | Stream synthesizer output + thinking over SSE; `false` is the production kill switch | `true` | `MIOT_HARNESS_AGENTS_SYNTHESIZER_STREAM` |
+| `agents.synthesizerThinkingBudget` | Extended-thinking token budget; `0` disables thinking | `4096` | `MIOT_HARNESS_AGENTS_SYNTHESIZER_THINKING_BUDGET` |
+
+### Intent router / conversation memory
+
+The intent router runs on **every** auto-mode request and defaults to a `claude-*` model — a missing Anthropic key 500s every auto request.
+
+| Parameter | Description | Harness default | Env var |
+|-----------|-------------|-----------------|---------|
+| `intentRouter.model` | Router model | `claude-haiku-4-5` | `MIOT_HARNESS_INTENT_ROUTER_MODEL` |
+| `intentRouter.confidenceThreshold` | Below it → keyword-router fallback | `0.7` | `MIOT_HARNESS_INTENT_ROUTER_CONFIDENCE_THRESHOLD` |
+| `conversationTokenBudget` | Conversation-hydration cap, tokens | `24000` | `MIOT_HARNESS_CONVERSATION_TOKEN_BUDGET` |
+
+### Identity (signed `X-MIOT-Identity` header)
+
+When a signing key is present, tenant/user ids in request bodies are ignored in favor of the verified header. Leave both key fields empty to disable (local/dev). The harness refuses to boot on an empty-string key.
+
+| Parameter | Description | Default | Env var |
+|-----------|-------------|---------|---------|
+| `identity.signingKey` | Literal HMAC key (chart creates a Secret) | `""` | `MIOT_HARNESS_IDENTITY_SIGNING_KEY` |
+| `identity.existingSecret` | Out-of-band Secret (production) | `""` | (same) |
+| `identity.existingSecretKey` | Field within that Secret | `signing-key` | (same) |
+| `identity.skewSeconds` | Clock-skew tolerance for `exp` | `null` → `60` | `MIOT_HARNESS_IDENTITY_SKEW_SECONDS` |
+
+### Observability
+
+Nothing OTel-related is rendered while `otel.enabled: false`. `otel.environment` falls back to `env`, so prod traces tag themselves `prod` without a second knob. Langfuse keys are credentials and follow the `existingSecret` / literal pattern.
+
+| Parameter | Description | Default | Env var |
+|-----------|-------------|---------|---------|
+| `observability.otel.enabled` | Enable the OTel exporter | `false` | `MIOT_HARNESS_OTEL_ENABLED` |
+| `observability.otel.endpoint` | Collector endpoint, e.g. `http://otel-collector.observability:4317` | `""` (not rendered) | `MIOT_HARNESS_OTEL_ENDPOINT` |
+| `observability.otel.serviceName` | Service name | `null` → `miot-harness` | `MIOT_HARNESS_OTEL_SERVICE_NAME` |
+| `observability.otel.environment` | Deployment environment tag | `""` → falls back to `env` | `MIOT_HARNESS_OTEL_ENVIRONMENT` |
+| `observability.langfuse.host` | Langfuse base URL | `null` → `http://localhost:3000` | `MIOT_HARNESS_LANGFUSE_HOST` |
+| `observability.langfuse.publicKey` | `pk-lf-…` literal (chart creates a Secret) | `""` | `MIOT_HARNESS_LANGFUSE_PUBLIC_KEY` |
+| `observability.langfuse.secretKey` | `sk-lf-…` literal (chart creates a Secret) | `""` | `MIOT_HARNESS_LANGFUSE_SECRET_KEY` |
+| `observability.langfuse.existingSecret` | Secret holding both keys (production) | `""` | (same) |
+| `observability.langfuse.existingSecretKeys.publicKey` | Field for the public key | `public-key` | (same) |
+| `observability.langfuse.existingSecretKeys.secretKey` | Field for the secret key | `secret-key` | (same) |
 
 ### Provider API keys
 
-Three modes per provider, in precedence order: `existingSecret` → `apiKey` → unset.
+Three modes per provider, in precedence order: `existingSecret` → `apiKey` → unset. **Anthropic is effectively required** — every default model and the intent router are `claude-*`. OpenAI / Google only matter if you point a `*_MODEL` at `gpt-*`/o-series or `gemini-*` models.
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `anthropic.existingSecret` | Reference an out-of-band Secret | `""` |
-| `anthropic.existingSecretKey` | Field within that Secret | `api-key` |
-| `anthropic.apiKey` | Literal value (chart creates a Secret) | `""` |
-| `openai.existingSecret` | Reference an out-of-band Secret | `""` |
-| `openai.existingSecretKey` | Field within that Secret | `api-key` |
-| `openai.apiKey` | Literal value (chart creates a Secret) | `""` |
+| Parameter | Description | Default | Env var |
+|-----------|-------------|---------|---------|
+| `anthropic.existingSecret` / `existingSecretKey` / `apiKey` | Anthropic key | `""` / `api-key` / `""` | `ANTHROPIC_API_KEY` |
+| `openai.existingSecret` / `existingSecretKey` / `apiKey` | OpenAI key | `""` / `api-key` / `""` | `OPENAI_API_KEY` |
+| `google.existingSecret` / `existingSecretKey` / `apiKey` | Google key | `""` / `api-key` / `""` | `GOOGLE_API_KEY` |
 
-When at least one credential takes the `apiKey` path, the chart renders a single `<release>-credentials` Secret with the b64-encoded value(s). Defaults render no Secret.
+When at least one credential takes the literal path, the chart renders a single `<release>-credentials` Secret with the b64-encoded value(s). Defaults render no Secret.
 
 ### Connectivity — tunnel sidecar
 
-For dev environments where Coordinador is reachable only via the cluster API. Default off; production should use VNet peering / Private Link / PostgREST instead. When enabled, set `nexo.dsn` (or the secret behind it) to point at `localhost:<tunnel.port>`.
+For dev environments where the datasource DB is reachable only via the cluster API. Default off; production should use VNet peering / Private Link / PostgREST instead. When enabled, set `datasource.dsn` (or the secret behind it) to point at `localhost:<tunnel.port>`.
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
@@ -219,14 +318,12 @@ Standard `networking.k8s.io/v1` NetworkPolicy is L3/L4 only — pair with a CNI 
 | `networkPolicy.enabled` | Render the policy | `false` |
 | `networkPolicy.dnsNamespace` | Namespace for DNS egress (mandatory) | `kube-system` |
 | `networkPolicy.allowPublicHttps` | Egress to `0.0.0.0/0:443` excluding RFC1918 | `true` |
-| `networkPolicy.coordinador.cidrs` | CIDRs for Coordinador access (must be set explicitly) | `[]` |
-| `networkPolicy.coordinador.ports` | Ports allowed to Coordinador | `[6432/TCP, 5432/TCP]` |
+| `networkPolicy.coordinador.cidrs` | CIDRs for datasource-DB access (must be set explicitly) | `[]` |
+| `networkPolicy.coordinador.ports` | Ports allowed to the datasource DB | `[6432/TCP, 5432/TCP]` |
 | `networkPolicy.extraEgress` | Free-form `NetworkPolicyEgressRule` entries | `[]` |
 | `networkPolicy.ingress.enabled` | Allow ingress from same-namespace Pods | `true` |
 
 ### Metrics / ServiceMonitor
-
-The harness's `/metrics` endpoint is a forward-compatible target — the chart accepts the toggle now; the endpoint lands in plan 13 phase 5.
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
@@ -238,7 +335,7 @@ The harness's `/metrics` endpoint is a forward-compatible target — the chart a
 
 ### Persistence
 
-The workspace volume at `/app/.miot-workspace` is **always** mounted (the read-only rootfs requires it). Default emptyDir survives container restarts but not pod rescheduling; opt in to PVC for `run_store` durability.
+The workspace volume at `/app/.miot-workspace` is **always** mounted (the read-only rootfs requires it; the image sets `MIOT_HARNESS_WORKSPACE_DIR` to that path). Default emptyDir survives container restarts but not pod rescheduling; opt in to PVC for `run_store` durability.
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
@@ -251,82 +348,103 @@ The workspace volume at `/app/.miot-workspace` is **always** mounted (the read-o
 
 ## Example configurations
 
-### Local dev — single-tenant, in-cluster sidecar
+A copy-ready version of the production template lives in the repo at [`charts/miot-harness/examples/values-prod.yaml`](https://github.com/microboxlabs/helm-charts/blob/trunk/charts/miot-harness/examples/values-prod.yaml).
+
+### Production — slim template
+
+Everything not listed falls back to chart defaults (deployment shape) or harness/provider defaults (tuning knobs). This is the full set of decisions a prod deploy actually has to make:
+
+```yaml
+env: "prod"
+defaultTenantId: "<your-tenant>"
+defaultUserId: "service"
+
+# Front-door auth — all three fields required once enabled.
+auth:
+  enabled: true
+  issuer: "https://<your-tenant>.auth0.com/"
+  jwksUrl: "https://<your-tenant>.auth0.com/.well-known/jwks.json"
+  rs256Audience: "<auth0-web-app-client-id>"   # `aud` of the forwarded JWT
+
+# DSN comes from an out-of-band Secret (key: dsn). Tenant lock and
+# freshness gates are NOT set — the nexo profile supplies
+# mintral / 30 / 240. Override datasource.tenantLock only if your
+# front door injects a different tenant id.
+datasource:
+  existingSecret: "harness-datasource"
+
+# Required: all default models + the intent router are claude-*.
+anthropic:
+  existingSecret: "harness-anthropic"   # key: api-key
+
+# Tracing (optional — delete this block to run without it).
+observability:
+  otel:
+    enabled: true
+    endpoint: "http://otel-collector.observability:4317"
+  langfuse:
+    host: "https://<your-langfuse-host>"
+    existingSecret: "harness-langfuse"  # keys: public-key, secret-key
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    memory: 2Gi
+
+persistence:
+  enabled: true
+  size: 10Gi
+```
+
+Create the referenced Secrets out-of-band (or via your secret operator):
+
+```bash
+kubectl -n miot-harness create secret generic harness-datasource \
+  --from-literal=dsn='postgresql://harness:<password>@<pg-host>:6432/citus'
+kubectl -n miot-harness create secret generic harness-anthropic \
+  --from-literal=api-key='<anthropic-api-key>'
+kubectl -n miot-harness create secret generic harness-langfuse \
+  --from-literal=public-key='pk-lf-…' --from-literal=secret-key='sk-lf-…'
+```
+
+### Local dev — literal credentials, in-cluster sidecar
 
 ```yaml
 env: "local"
-nexo:
-  dsn: "postgres://harness:devpw@127.0.0.1:6434/coordinador"
+datasource:
+  dsn: "postgresql://harness:devpw@127.0.0.1:6434/citus"
 anthropic:
   apiKey: "sk-ant-dev-xxxxx"   # chart creates a Secret; do NOT commit values.yaml
 connectivity:
   tunnel:
     enabled: true
     kubeconfigSecret: "harness-coordinador-kubeconfig"
-    args:
-      - |
-        while true; do
-          kubectl port-forward -n coordinador svc/pgbouncer 6434:6432 \
-            --address 127.0.0.1 || true
-          sleep 5
-        done
 ```
 
-### Staging — existingSecret everywhere, persistence + NetworkPolicy
+For dev snapshots that lag behind the profile's 240-minute refuse gate, relax it explicitly:
+
+```yaml
+datasource:
+  freshnessWarnMinutes: 80000
+  freshnessRefuseMinutes: 80000
+```
+
+### Staging — hardened, observability on
 
 ```yaml
 env: "staging"
-replicaCount: 1
 
-nexo:
-  existingSecret: "harness-nexo-dsn"
+datasource:
+  existingSecret: "harness-datasource"
 anthropic:
-  existingSecret: "harness-anthropic-key"
-openai:
-  existingSecret: "harness-openai-key"
+  existingSecret: "harness-anthropic"
 
 persistence:
   enabled: true
   size: 5Gi
   storageClass: managed-csi
-
-networkPolicy:
-  enabled: true
-  coordinador:
-    cidrs:
-      - 10.10.0.0/16
-```
-
-### Production — autoscaled, observability on, hardened
-
-```yaml
-env: "prod"
-replicaCount: 3
-
-resources:
-  limits:
-    cpu: 2000m
-    memory: 2Gi
-  requests:
-    cpu: 500m
-    memory: 1Gi
-
-autoscaling:
-  enabled: true
-  minReplicas: 3
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 70
-
-nexo:
-  existingSecret: "harness-nexo-dsn"
-  freshnessRefuseMinutes: 60   # tighter prod gate
-anthropic:
-  existingSecret: "harness-anthropic-key"
-
-persistence:
-  enabled: true
-  size: 20Gi
-  storageClass: premium-ssd
 
 metrics:
   enabled: true
@@ -339,7 +457,7 @@ networkPolicy:
   enabled: true
   coordinador:
     cidrs:
-      - 10.0.0.0/16
+      - 10.10.0.0/16
 ```
 
 ## Accessing the harness
@@ -348,22 +466,40 @@ networkPolicy:
 # Health check (always 200 once the process is up)
 kubectl port-forward -n miot-harness svc/harness 8000:8000
 curl http://127.0.0.1:8000/health
+# → includes "datasource": {"name": "nexo", "enabled": true, "tools": [...],
+#   "snapshot_age_minutes": ...}
 
-# Readiness (reflects Nexo state in plan-13 phase 5+)
+# Readiness
 curl http://127.0.0.1:8000/health/ready
 ```
 
 ## Troubleshooting
 
-### `/health` reports `nexo.enabled: false` despite `nexo.dsn` set
+### `/health` reports `datasource.enabled: false` despite a configured DSN
 
-The harness's freshness gate (`miot-harness/integrations/nexo/boot.py`) refuses to register Nexo tools if the snapshot is older than `MIOT_HARNESS_NEXO_FRESHNESS_REFUSE_MINUTES` (default 240). Possible causes:
+The provider's freshness gate refuses to register data tools if the snapshot is older than the refuse threshold (nexo profile default: 240 minutes; override via `datasource.freshnessRefuseMinutes`). Possible causes:
 
-1. The Coordinador team hasn't refreshed the materialized views recently.
+1. The upstream team hasn't refreshed the materialized views recently.
 2. Wrong DSN — the harness reaches a stale read replica.
 3. ACL — the `harness` PG role lacks read on the freshness probe.
 
-Check `kubectl logs` for `Nexo: critical` entries; they enumerate the failure mode.
+Check `kubectl logs` for the provider's boot entries; they enumerate the failure mode.
+
+### Every auto-mode request returns 500
+
+The intent router runs first on each auto request and defaults to a `claude-*` model. A missing/invalid `ANTHROPIC_API_KEY` therefore breaks **all** auto-mode traffic, not just data questions. Verify the key Secret exists and is mounted:
+
+```bash
+kubectl -n miot-harness exec <pod> -- printenv | grep -c ANTHROPIC_API_KEY
+```
+
+### Tenant-gate refusals in the logs (not 500s)
+
+`datasource.tenantLock` (or the profile default) must match the tenant id the front door injects via `X-Miot-Tenant-Client-Id`. If the front door sends the org *client-id* while the lock holds the org *slug* (or vice versa), every data request is refused. Align the lock with what the front door actually sends.
+
+### Pod crashes at startup after enabling auth
+
+`auth.enabled: true` requires all of `auth.issuer`, `auth.jwksUrl`, `auth.rs256Audience` — the lifespan fails fast otherwise. The same fail-fast applies to an empty-string `datasource.tenantLock` or `identity.signingKey`.
 
 ### Pod crashes on first `/runs` invocation with "read-only filesystem"
 
@@ -376,16 +512,14 @@ kubectl exec -n miot-harness <pod> -- ls -la /app/.miot-workspace
 # should be writable by UID 65534
 ```
 
-If the directory is missing or read-only, your override has dropped the chart's workspace volume. Re-check `volumes` and `volumeMounts` in your values.
-
 ### `networkPolicy.enabled=true` but Pods can't reach Anthropic / OpenAI
 
 Two common causes:
 
-1. **CNI doesn't enforce NetworkPolicy.** Some Flannel modes ignore policies entirely. Verify with `kubectl get pods -n kube-system | grep -E 'cilium|calico|antrea'`. If your cluster has no policy-enforcing CNI, the chart's NetworkPolicy is rendered but does nothing — Pods can reach everything regardless.
-2. **Transparent egress proxy.** Some clusters intercept HTTPS via an egress proxy with its own allowlist. The chart's NetworkPolicy permits the destination IP, but the proxy denies the hostname. Audit the egress proxy config.
+1. **CNI doesn't enforce NetworkPolicy.** Some Flannel modes ignore policies entirely. Verify with `kubectl get pods -n kube-system | grep -E 'cilium|calico|antrea'`.
+2. **Transparent egress proxy.** The chart's NetworkPolicy permits the destination IP, but the proxy denies the hostname. Audit the egress proxy config.
 
-If the symptom is "Pods can reach Anthropic but not Coordinador", check `networkPolicy.coordinador.cidrs` — empty means no Coordinador rule is rendered (intentional fail-closed).
+If the symptom is "Pods can reach Anthropic but not the datasource DB", check `networkPolicy.coordinador.cidrs` — empty means no rule is rendered (intentional fail-closed).
 
 ## Upgrading
 
@@ -395,7 +529,7 @@ helm upgrade harness microboxlabs/miot-harness \
   -f values.yaml
 ```
 
-Rolling restarts: the chart's Deployment uses default `RollingUpdate` strategy. The harness's `/health/ready` is the readiness gate — pods join traffic only after Nexo bootstraps (or after the chart's startup grace, whichever applies).
+Upgrading **0.2.x → 0.3.0** is a values break — see [Migrating to 0.3.0](#migrating-to-030). Pair the chart upgrade with a harness image containing modulariot#604; mixing old chart + new image (or vice versa) leaves the renamed env vars unread.
 
 ## Uninstalling
 

@@ -25,35 +25,43 @@ MIOT Harness has been deployed.
    curl -sf http://127.0.0.1:{{ .Values.service.port }}/health > /dev/null && echo OK || echo FAIL
 
    The harness should serve `/health` with HTTP 200 within seconds of
-   the Pod going Ready. If `nexo.enabled` is `false` despite a
+   the Pod going Ready. `/health` includes a `datasource` block
+   (`{"name": "{{ .Values.datasource.kind }}", "enabled": ..., "tools": ...,
+   "snapshot_age_minutes": ...}`). If `enabled` is `false` despite a
    configured DSN, the freshness gate likely refused a stale snapshot
-   (default `nexo.freshnessRefuseMinutes: 240`). See:
+   (provider default: refuse after 240 minutes; override via
+   `datasource.freshnessRefuseMinutes`). See:
    https://microboxlabs.github.io/helm-charts/en/charts/modulariot/miot-harness#troubleshooting
 
-3. Watch the boot log for Nexo registration:
+3. Watch the boot log for datasource registration:
 
    kubectl logs -n {{ .Release.Namespace }} -l "app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/name={{ include "miot-harness.name" . }}" -f
 
-   On a healthy boot you'll see:
-     INFO  Nexo: enabled
-     INFO  Registered nexo tools: [...]
+   On a healthy boot you'll see the `{{ .Values.datasource.kind }}`
+   provider register its tools.
 
 {{- if .Values.connectivity.tunnel.enabled }}
 
-4. Tunnel sidecar is enabled. Verify it's reaching Coordinador:
+4. Tunnel sidecar is enabled. Verify it's reaching the datasource DB:
 
    kubectl exec -n {{ .Release.Namespace }} <pod> -c tunnel -- \
      nc -z 127.0.0.1 {{ .Values.connectivity.tunnel.port }} && echo "tunnel up"
 {{- end }}
-{{- if not (or .Values.nexo.dsn .Values.nexo.existingSecret) }}
+{{- if not (or .Values.datasource.dsn .Values.datasource.existingSecret) }}
 
-⚠  No `nexo.dsn` or `nexo.existingSecret` is configured. The harness
-   will boot with `nexo.enabled: false` — `/health` returns 200 but
-   Nexo tools are not registered. Set one of:
-     * `--set nexo.dsn=postgres://...` (chart creates a Secret)
-     * `--set nexo.existingSecret=<name-of-existing-secret>` (production)
+⚠  No `datasource.dsn` or `datasource.existingSecret` is configured. The
+   harness will boot with the datasource disabled — `/health` returns 200
+   but no data tools are registered. Set one of:
+     * `--set datasource.dsn=postgres://...` (chart creates a Secret)
+     * `--set datasource.existingSecret=<name-of-existing-secret>` (production)
+{{- end }}
+{{- if not (or .Values.anthropic.existingSecret .Values.anthropic.apiKey) }}
+
+⚠  No Anthropic API key is configured. Every default model (agents +
+   intent router) is claude-*, so auto-mode requests will fail until you
+   set `anthropic.existingSecret` (production) or `anthropic.apiKey` (dev).
 {{- end }}
 
-For the full parameter reference, example configs, and
-troubleshooting:
+For the full parameter reference, the 0.2.x → 0.3.0 migration table,
+example configs, and troubleshooting:
    https://microboxlabs.github.io/helm-charts/en/charts/modulariot/miot-harness

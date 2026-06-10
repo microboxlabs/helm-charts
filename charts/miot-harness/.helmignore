@@ -21,3 +21,6 @@
 .idea/
 *.tmproj
 .vscode/
+
+# Example values files are docs, not chart content.
+examples/

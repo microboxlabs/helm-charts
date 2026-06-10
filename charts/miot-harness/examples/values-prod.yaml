@@ -1,0 +1,61 @@
+# =============================================================================
+# miot-harness — slim production values template (chart >= 0.3.0)
+# -----------------------------------------------------------------------------
+# Copy, replace every <PLACEHOLDER>, deploy with `-f`. Everything NOT listed
+# here intentionally falls back to a default you don't need to restate:
+#   * deployment shape        -> chart defaults (values.yaml)
+#   * tuning knobs            -> harness built-in defaults (config.py)
+#   * tenant lock / freshness -> datasource provider profile
+#     (nexo: mintral / warn 30 min / refuse 240 min)
+#
+# Secrets are referenced, never inlined. Create them out-of-band:
+#   kubectl create secret generic harness-datasource --from-literal=dsn='postgresql://harness:<PASSWORD>@<PG_HOST>:6432/citus'
+#   kubectl create secret generic harness-anthropic  --from-literal=api-key='<ANTHROPIC_API_KEY>'
+# =============================================================================
+
+env: "prod"
+defaultTenantId: "<DEFAULT_TENANT_ID>"
+defaultUserId: "service"
+
+# Front-door auth — the harness re-verifies the RS256 JWT the modulith
+# forwards. All three fields are required once enabled (fails fast at boot).
+auth:
+  enabled: true
+  issuer: "https://<YOUR_TENANT>.auth0.com/"
+  jwksUrl: "https://<YOUR_TENANT>.auth0.com/.well-known/jwks.json"
+  rs256Audience: "<AUTH0_WEB_APP_CLIENT_ID>"  # `aud` of the forwarded JWT
+
+# kind defaults to "nexo". tenantLock is unset on purpose — the nexo profile
+# pins "mintral". Set it only if your front door injects a different id
+# (X-Miot-Tenant-Client-Id); a mismatch shows up as tenant-gate refusals.
+datasource:
+  existingSecret: "harness-datasource"  # key: dsn
+
+# REQUIRED — every default model + the intent router are claude-*; a missing
+# key 500s every auto-mode request.
+anthropic:
+  existingSecret: "harness-anthropic"   # key: api-key
+
+# --- Optional: tracing. Delete this block to run without it. ---------------
+# observability:
+#   otel:
+#     enabled: true
+#     endpoint: "http://otel-collector.observability:4317"
+#   langfuse:
+#     host: "https://<YOUR_LANGFUSE_HOST>"
+#     existingSecret: "harness-langfuse"  # keys: public-key, secret-key
+
+# --- Optional: identity assertion (approvals feature). ---------------------
+# identity:
+#   existingSecret: "harness-identity"    # key: signing-key
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    memory: 2Gi
+
+persistence:
+  enabled: true
+  size: 10Gi

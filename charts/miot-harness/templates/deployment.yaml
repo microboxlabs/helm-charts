@@ -44,89 +44,18 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+          # Full env construction lives in the "miot-harness.env" helper
+          # (templates/_helpers.tpl): contract vars, optional knobs rendered
+          # only when set, and credentials via secretKeyRef.
           env:
-            # Process / runtime
-            - name: MIOT_HARNESS_ENV
-              value: {{ .Values.env | quote }}
-            - name: MIOT_HARNESS_LOG_LEVEL
-              value: {{ .Values.logLevel | quote }}
-            - name: MIOT_HARNESS_DEFAULT_TENANT_ID
-              value: {{ .Values.defaultTenantId | quote }}
-            - name: MIOT_HARNESS_DEFAULT_USER_ID
-              value: {{ .Values.defaultUserId | quote }}
-            - name: MIOT_HARNESS_REQUEST_ID_HEADER
-              value: {{ .Values.requestIdHeader | quote }}
-            # Auth0 RS256 defense-in-depth on /runs* (#522 / modulariot #528).
-            # Off by default; when enabled, the harness re-verifies the same
-            # RS256 token Quarkus already validated. issuer/JWKS/audience are
-            # public, so they ride plain values (no Secret). The lifespan
-            # fails fast if auth.enabled is true with any field unset.
-            - name: MIOT_HARNESS_AUTH_ENABLED
-              value: {{ .Values.auth.enabled | quote }}
-            {{- if .Values.auth.enabled }}
-            - name: AUTH0_ISSUER
-              value: {{ .Values.auth.issuer | quote }}
-            - name: AUTH0_JWKS_URL
-              value: {{ .Values.auth.jwksUrl | quote }}
-            - name: AUTH0_RS256_AUDIENCE
-              value: {{ .Values.auth.rs256Audience | quote }}
+            {{- include "miot-harness.env" . | nindent 12 }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
             {{- end }}
-            # Nexo (Coordinador) DSN. Always projected via secretKeyRef so the
-            # value never appears in `kubectl describe pod`. Helper picks the
-            # right Secret: user-provided `existingSecret`, or the chart-managed
-            # one rendered by templates/secret.yaml when `nexo.dsn` is a literal.
-            {{- if or .Values.nexo.existingSecret .Values.nexo.dsn }}
-            - name: MIOT_HARNESS_NEXO_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "miot-harness.nexoSecretName" . }}
-                  key: {{ include "miot-harness.nexoSecretKey" . }}
-            {{- end }}
-            - name: MIOT_HARNESS_NEXO_DB_ALIAS
-              value: {{ .Values.nexo.dbAlias | quote }}
-            - name: MIOT_HARNESS_NEXO_APPLICATION_NAME
-              value: {{ .Values.nexo.applicationName | quote }}
-            - name: MIOT_HARNESS_NEXO_TENANT_LOCK
-              value: {{ .Values.nexo.tenantLock | quote }}
-            - name: MIOT_HARNESS_NEXO_SEARCH_PATH
-              value: {{ .Values.nexo.searchPath | quote }}
-            - name: MIOT_HARNESS_NEXO_FRESHNESS_WARN_MINUTES
-              value: {{ .Values.nexo.freshnessWarnMinutes | quote }}
-            - name: MIOT_HARNESS_NEXO_FRESHNESS_REFUSE_MINUTES
-              value: {{ .Values.nexo.freshnessRefuseMinutes | quote }}
-            - name: MIOT_HARNESS_NEXO_MAX_TURNS
-              value: {{ .Values.nexo.maxTurns | quote }}
-            - name: MIOT_HARNESS_NEXO_CRITIC_ENABLED
-              value: {{ .Values.nexo.criticEnabled | quote }}
-            - name: MIOT_HARNESS_NEXO_SUPERVISOR_MODE
-              value: {{ .Values.nexo.supervisorMode | quote }}
-            - name: MIOT_HARNESS_NEXO_FILTER_EXPERT_MODEL
-              value: {{ .Values.nexo.models.filterExpert | quote }}
-            - name: MIOT_HARNESS_NEXO_ANALYST_MODEL
-              value: {{ .Values.nexo.models.analyst | quote }}
-            - name: MIOT_HARNESS_NEXO_SYNTHESIZER_MODEL
-              value: {{ .Values.nexo.models.synthesizer | quote }}
-            - name: MIOT_HARNESS_NEXO_CRITIC_MODEL
-              value: {{ .Values.nexo.models.critic | quote }}
-            - name: MIOT_HARNESS_NEXO_SUMMARIZER_MODEL
-              value: {{ .Values.nexo.models.summarizer | quote }}
-            # Provider API keys. Same secretKeyRef pattern as MIOT_HARNESS_NEXO_DSN.
-            # Env-var names are unprefixed because miot_harness/config.py reads them
-            # via AliasChoices("ANTHROPIC_API_KEY", ...) / ("OPENAI_API_KEY", ...).
-            {{- if or .Values.anthropic.existingSecret .Values.anthropic.apiKey }}
-            - name: ANTHROPIC_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "miot-harness.anthropicSecretName" . }}
-                  key: {{ include "miot-harness.anthropicSecretKey" . }}
-            {{- end }}
-            {{- if or .Values.openai.existingSecret .Values.openai.apiKey }}
-            - name: OPENAI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "miot-harness.openaiSecretName" . }}
-                  key: {{ include "miot-harness.openaiSecretKey" . }}
-            {{- end }}
+          {{- with .Values.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

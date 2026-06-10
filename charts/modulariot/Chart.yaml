@@ -2,7 +2,7 @@ apiVersion: v2
 name: modulariot
 description: An umbrella Helm chart for ModularIoT platform - includes docs, website, and main app
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "1.0.0"
 keywords:
   - modulariot
@@ -35,6 +35,6 @@ dependencies:
     repository: "file://../miot-modulith"
     condition: miot-modulith.enabled
   - name: miot-harness
-    version: "0.1.0"
+    version: "0.3.0"
     repository: "file://../miot-harness"
     condition: miot-harness.enabled
