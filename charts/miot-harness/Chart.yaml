@@ -2,7 +2,7 @@ apiVersion: v2
 name: miot-harness
 description: A Helm chart for MIOT Harness — multi-agent backend (FastAPI) for ASK MIOT
 type: application
-version: 0.2.0
+version: 0.3.0
 appVersion: "0.1.0"
 keywords:
   - modulariot

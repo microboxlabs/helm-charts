@@ -128,11 +128,11 @@ resources: {}
   #   cpu: 100m
   #   memory: 128Mi
 
-# Liveness probe MUST NOT depend on Nexo state — the process is "live"
-# as long as it serves /health (returns 200 even when Nexo is disabled).
-# Readiness probe hits /health/ready, which the platform may consider
-# not-ready when Nexo is required but not yet enabled. See plan 13
-# 05-observability-and-health.md.
+# Liveness probe MUST NOT depend on datasource state — the process is "live"
+# as long as it serves /health (returns 200 even when the datasource is
+# disabled). Readiness probe hits /health/ready, which the platform may
+# consider not-ready when the datasource is required but not yet enabled.
+# See plan 13 05-observability-and-health.md.
 livenessProbe:
   httpGet:
     path: /health
@@ -178,9 +178,20 @@ tolerations: []
 affinity: {}
 
 # =============================================================================
-# Harness configuration — every key below maps 1:1 to a `MIOT_HARNESS_*`
-# env var read by `miot_harness/config.py`. Plan:
-# .cursor/plans/ai-first/13-server-deployment/helm/02-values-surface.md
+# Harness configuration — keys below map 1:1 to env vars read by
+# `miot_harness/config.py` (core) and `integrations/nexo/settings.py`
+# (provider-private). Aligned with the datasource-agnostic refactor
+# (modulariot#604): MIOT_HARNESS_NEXO_* became DATASOURCE_* / AGENTS_*.
+#
+# Two conventions keep this surface slim:
+#   * Keys with a concrete default are ALWAYS rendered as env vars.
+#   * Keys defaulting to `null` are rendered ONLY when set — unset means
+#     "use the harness built-in default" (stated in the trailing comment).
+#     The chart never re-states application defaults, so it cannot drift
+#     from them. Override only what differs in your environment.
+#
+# Secrets (DSN, API keys, Langfuse keys, identity signing key) are always
+# projected via secretKeyRef — never as literal Pod env values.
 # =============================================================================
 
 # Process / runtime contract
@@ -189,6 +200,11 @@ defaultTenantId: "demo-tenant"
 defaultUserId: "demo-user"
 logLevel: "INFO"           # DEBUG | INFO | WARNING | ERROR | CRITICAL
 requestIdHeader: "x-request-id"
+# Comma-separated tenant ids allowed to request `debug=true` runs. Debug
+# runs surface tool inputs/outputs over SSE — on a data-touching path that
+# means real tenant data. Empty = debug denied for ALL tenants (secure
+# default; keep empty in prod).
+allowDebugTenants: ""      # MIOT_HARNESS_ALLOW_DEBUG_TENANTS
 
 # Auth0 RS256 defense-in-depth on /runs* (#522 / modulariot #528).
 # Off by default so unit tests and local dev keep the legacy
@@ -204,38 +220,108 @@ auth:
   jwksUrl: ""                # AUTH0_JWKS_URL — Auth0 well-known JWKS.
   rs256Audience: ""          # AUTH0_RS256_AUDIENCE — required `aud` value.
 
-# Nexo / Coordinador integration. Mirrors miot-calendar's
-# `postgresql.external.*` nesting style.
+# Datasource seam (modulariot#604). The harness core is datasource-agnostic;
+# `kind` selects a DataSourceProvider from the registry (currently: `nexo`).
+# Domain defaults — tenant lock, freshness gates — live in the provider's
+# profile, NOT in this chart: leave the null keys below unset unless you
+# need to OVERRIDE the profile.
 #
-# Connectivity options (see plan 13 / 04-coordinador-connectivity.md):
-#   * `nexo.dsn`              — literal DSN (dev/local convenience)
-#   * `nexo.existingSecret`   — reference a Secret holding the DSN (production)
-#   * neither set             — Nexo disabled at boot, harness still healthy
-nexo:
+# DSN options (in precedence order):
+#   * `datasource.existingSecret` — reference a Secret holding the DSN
+#                                   (production path)
+#   * `datasource.dsn`            — literal DSN; chart stores it in a
+#                                   chart-managed Secret (dev convenience)
+#   * neither set                 — datasource disabled at boot; the harness
+#                                   stays healthy and serves non-data runs.
+datasource:
+  kind: "nexo"                         # MIOT_HARNESS_DATASOURCE_KIND
   dsn: ""                              # NEVER commit a real DSN here.
   existingSecret: ""                   # Name of K8s Secret with the DSN.
   existingSecretKey: "dsn"             # Field within that Secret.
-  dbAlias: "coordinador-dev"
   applicationName: "miot-harness"      # Visible in pg_stat_activity.
-  tenantLock: "mintral"                # Single-tenant pin (plan 13 v1).
-  searchPath: "nexo"
-  freshnessWarnMinutes: 30             # Soft gate.
-  freshnessRefuseMinutes: 240          # Hard gate (refuses to register tools).
-  maxTurns: 8
-  criticEnabled: false
-  supervisorMode: "rule"               # `rule` or `llm`.
-  models:
-    filterExpert: "claude-haiku-4-5"
-    analyst: "claude-sonnet-4-6"
-    synthesizer: "claude-sonnet-4-6"
-    critic: "claude-sonnet-4-6"
-    summarizer: "claude-haiku-4-5"
+  # Hard tenant lock for every datasource tool call. Must be non-empty if
+  # set (the harness refuses to boot on ""). null → provider profile
+  # default (nexo: "mintral").
+  tenantLock: null                     # MIOT_HARNESS_DATASOURCE_TENANT_LOCK
+  # Snapshot freshness gates, minutes. `refuse` is a hard gate that
+  # disables the datasource when the snapshot is older. Explicit 0 is
+  # honored. null → profile defaults (nexo: warn 30 / refuse 240).
+  freshnessWarnMinutes: null           # MIOT_HARNESS_DATASOURCE_FRESHNESS_WARN_MINUTES
+  freshnessRefuseMinutes: null         # MIOT_HARNESS_DATASOURCE_FRESHNESS_REFUSE_MINUTES
 
-# Provider API keys. Three modes (in precedence order):
+# Provider-private knobs for the built-in `nexo` datasource. These are
+# Postgres concepts (schema search path, EXPLAIN plan cost) and keep the
+# MIOT_HARNESS_NEXO_* prefix upstream. Ignored by other datasource kinds.
+nexo:
+  searchPath: null             # null → "nexo"    MIOT_HARNESS_NEXO_SEARCH_PATH
+  explainCostThreshold: null   # null → 10000.0   MIOT_HARNESS_NEXO_EXPLAIN_COST_THRESHOLD
+
+# Agent graph (MIOT_HARNESS_AGENTS_*). All null → harness built-in defaults.
+agents:
+  maxTurns: null               # null → 8
+  criticEnabled: null          # null → false
+  supervisorMode: null         # null → "rule" ("rule" | "llm")
+  models:
+    filterExpert: null         # null → "claude-haiku-4-5"
+    analyst: null              # null → "claude-sonnet-4-6"
+    synthesizer: null          # null → "claude-sonnet-4-6"
+    critic: null               # null → "claude-sonnet-4-6"
+    summarizer: null           # null → "claude-haiku-4-5"
+  # Synthesizer SSE streaming with extended thinking. `false` is the
+  # production kill switch (falls back to non-streaming .ainvoke()).
+  synthesizerStream: null          # null → true
+  # Extended-thinking token budget; 0 disables thinking entirely.
+  synthesizerThinkingBudget: null  # null → 4096
+
+# Intent router — runs on EVERY auto-mode request. Defaults to a claude-*
+# model, so a missing ANTHROPIC_API_KEY 500s every auto request.
+intentRouter:
+  model: null                  # null → "claude-haiku-4-5"
+  confidenceThreshold: null    # null → 0.7 (below it → keyword-router fallback)
+
+# Conversation-memory hydration cap, in tokens.
+conversationTokenBudget: null  # null → 24000
+
+# Signed identity header (X-MIOT-Identity, HMAC-SHA256). When a signing key
+# is present, tenant/user ids in request bodies are ignored in favor of the
+# verified header values. Leave both key fields empty to disable (local/dev).
+# Generate a strong random secret for production if the approvals/identity
+# feature is in use — the harness refuses to boot on an empty string.
+identity:
+  signingKey: ""               # Literal value (chart creates a Secret).
+  existingSecret: ""           # Reference a Secret instead (production).
+  existingSecretKey: "signing-key"
+  skewSeconds: null            # null → 60 (clock-skew tolerance for `exp`)
+
+# Observability: OTel exporter + Langfuse tracing keys.
+observability:
+  otel:
+    enabled: false             # MIOT_HARNESS_OTEL_ENABLED
+    # Collector endpoint, e.g. http://otel-collector.observability:4317.
+    # "" → not rendered (harness default: http://localhost:4317).
+    endpoint: ""               # MIOT_HARNESS_OTEL_ENDPOINT
+    serviceName: null          # null → "miot-harness"
+    # "" → falls back to `env` above, so prod traces tag themselves "prod"
+    # without a second knob.
+    environment: ""            # MIOT_HARNESS_OTEL_ENVIRONMENT
+  langfuse:
+    # Langfuse base URL (used by tracing + the cost-report CLI).
+    host: null                 # null → "http://localhost:3000"
+    publicKey: ""              # pk-lf-… literal (chart creates a Secret).
+    secretKey: ""              # sk-lf-… literal (chart creates a Secret).
+    existingSecret: ""         # Secret holding BOTH keys (production).
+    existingSecretKeys:
+      publicKey: "public-key"
+      secretKey: "secret-key"
+
+# Provider API keys. Three modes per provider (in precedence order):
 #   1. existingSecret non-empty     -> chart references the Secret.
-#   2. apiKey non-empty             -> chart creates a Secret (T06).
+#   2. apiKey non-empty             -> chart creates a Secret.
 #   3. both empty                   -> env var unset, harness boots
 #                                       without that provider.
+# Anthropic is effectively REQUIRED: every default model and the intent
+# router are claude-*. OpenAI / Google only matter if you point a *_MODEL
+# at gpt-*/o-series or gemini-* models.
 # Memory: never commit a real API key as a default.
 anthropic:
   existingSecret: ""
@@ -245,12 +331,26 @@ openai:
   existingSecret: ""
   existingSecretKey: "api-key"
   apiKey: ""
+google:
+  existingSecret: ""
+  existingSecretKey: "api-key"
+  apiKey: ""
+
+# Escape hatches: appended verbatim to the harness container. Use these for
+# env vars the chart doesn't model yet (new harness knobs, provider-private
+# settings of future datasource kinds, etc.).
+extraEnv: []
+# - name: MIOT_HARNESS_SOME_NEW_KNOB
+#   value: "x"
+extraEnvFrom: []
+# - secretRef:
+#     name: harness-extra-secrets
 
 # Connectivity to Coordinador. The tunnel sidecar is a dev convenience
 # (kubectl port-forward inside the Pod); production should reach
 # Coordinador via VNet peering / Private Link / PostgREST instead.
 #
-# When `tunnel.enabled: true`, set `nexo.dsn` (or the existingSecret
+# When `tunnel.enabled: true`, set `datasource.dsn` (or the existingSecret
 # behind it) to point at `localhost:<tunnel.port>` — the harness reads
 # the same DSN env var either way; it doesn't know there's a sidecar.
 connectivity:

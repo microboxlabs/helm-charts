@@ -73,67 +73,174 @@ helpers below pick this name OR the user-provided `existingSecret`.
 {{/*
 Whether to render the chart-managed credentials Secret. True iff at least
 one credential is supplied as a literal value AND no existingSecret is set
-for it. Kept as a helper so secret.yaml's render-gate and deployment.yaml's
+for it. Kept as a helper so secret.yaml's render-gate and the env helper's
 secretKeyRef gates stay in lockstep.
 */}}
 {{- define "miot-harness.shouldRenderCredentialsSecret" -}}
+{{- $lf := .Values.observability.langfuse }}
 {{- if or
-      (and (not .Values.nexo.existingSecret) .Values.nexo.dsn)
+      (and (not .Values.datasource.existingSecret) .Values.datasource.dsn)
       (and (not .Values.anthropic.existingSecret) .Values.anthropic.apiKey)
       (and (not .Values.openai.existingSecret) .Values.openai.apiKey)
+      (and (not .Values.google.existingSecret) .Values.google.apiKey)
+      (and (not $lf.existingSecret) (or $lf.publicKey $lf.secretKey))
+      (and (not .Values.identity.existingSecret) .Values.identity.signingKey)
 }}true{{- end }}
 {{- end }}
 
 {{/*
-Per-credential Secret name + key. Each helper returns the `existingSecret`
-when set, else the chart-managed Secret name + canonical key. Mirrors
-miot-calendar's `databaseSecretName` pattern.
+secretKeyRef body (name + key) for one credential channel. Args (list):
+  0: root context
+  1: channel block — needs `existingSecret` and `existingSecretKey` fields
+  2: default key inside the existingSecret
+  3: canonical key inside the chart-managed credentials Secret
+Returns the `existingSecret` reference when set, else points at the
+chart-managed Secret. Mirrors miot-calendar's `databaseSecretName` pattern.
 */}}
-
-{{- define "miot-harness.nexoSecretName" -}}
-{{- if .Values.nexo.existingSecret }}
-{{- .Values.nexo.existingSecret }}
-{{- else }}
-{{- include "miot-harness.credentialsSecretName" . }}
-{{- end }}
-{{- end }}
-
-{{- define "miot-harness.nexoSecretKey" -}}
-{{- if .Values.nexo.existingSecret }}
-{{- .Values.nexo.existingSecretKey | default "dsn" }}
-{{- else }}
-{{- "nexo-dsn" }}
-{{- end }}
+{{- define "miot-harness.credentialRef" -}}
+{{- $root := index . 0 -}}
+{{- $channel := index . 1 -}}
+{{- $defaultKey := index . 2 -}}
+{{- $managedKey := index . 3 -}}
+{{- if $channel.existingSecret -}}
+name: {{ $channel.existingSecret }}
+key: {{ $channel.existingSecretKey | default $defaultKey }}
+{{- else -}}
+name: {{ include "miot-harness.credentialsSecretName" $root }}
+key: {{ $managedKey }}
+{{- end -}}
 {{- end }}
 
-{{- define "miot-harness.anthropicSecretName" -}}
-{{- if .Values.anthropic.existingSecret }}
-{{- .Values.anthropic.existingSecret }}
-{{- else }}
-{{- include "miot-harness.credentialsSecretName" . }}
+{{/*
+Container env for the harness. Three groups:
+  1. Always-rendered contract vars (concrete chart defaults).
+  2. Optional knobs — rendered only when the value is set (non-null and
+     non-empty), so unset keys fall back to the harness built-in defaults
+     and the chart never re-states them. Explicit `false` / `0` ARE
+     rendered (e.g. agents.synthesizerStream kill switch).
+  3. Credentials via secretKeyRef (never literal values).
+*/}}
+{{- define "miot-harness.env" -}}
+# Process / runtime
+- name: MIOT_HARNESS_ENV
+  value: {{ .Values.env | quote }}
+- name: MIOT_HARNESS_LOG_LEVEL
+  value: {{ .Values.logLevel | quote }}
+- name: MIOT_HARNESS_DEFAULT_TENANT_ID
+  value: {{ .Values.defaultTenantId | quote }}
+- name: MIOT_HARNESS_DEFAULT_USER_ID
+  value: {{ .Values.defaultUserId | quote }}
+- name: MIOT_HARNESS_REQUEST_ID_HEADER
+  value: {{ .Values.requestIdHeader | quote }}
+# Datasource seam (modulariot#604)
+- name: MIOT_HARNESS_DATASOURCE_KIND
+  value: {{ .Values.datasource.kind | quote }}
+- name: MIOT_HARNESS_DATASOURCE_APPLICATION_NAME
+  value: {{ .Values.datasource.applicationName | quote }}
+# Auth0 RS256 defense-in-depth. issuer/JWKS/audience are public, so they
+# ride plain values (no Secret). The lifespan fails fast if auth.enabled
+# is true with any field unset.
+- name: MIOT_HARNESS_AUTH_ENABLED
+  value: {{ .Values.auth.enabled | quote }}
+{{- if .Values.auth.enabled }}
+- name: AUTH0_ISSUER
+  value: {{ .Values.auth.issuer | quote }}
+- name: AUTH0_JWKS_URL
+  value: {{ .Values.auth.jwksUrl | quote }}
+- name: AUTH0_RS256_AUDIENCE
+  value: {{ .Values.auth.rs256Audience | quote }}
+{{- end }}
+# Optional knobs — unset (null/empty) means the harness default applies.
+{{- range $pair := list
+    (list "MIOT_HARNESS_ALLOW_DEBUG_TENANTS" .Values.allowDebugTenants)
+    (list "MIOT_HARNESS_DATASOURCE_TENANT_LOCK" .Values.datasource.tenantLock)
+    (list "MIOT_HARNESS_DATASOURCE_FRESHNESS_WARN_MINUTES" .Values.datasource.freshnessWarnMinutes)
+    (list "MIOT_HARNESS_DATASOURCE_FRESHNESS_REFUSE_MINUTES" .Values.datasource.freshnessRefuseMinutes)
+    (list "MIOT_HARNESS_NEXO_SEARCH_PATH" .Values.nexo.searchPath)
+    (list "MIOT_HARNESS_NEXO_EXPLAIN_COST_THRESHOLD" .Values.nexo.explainCostThreshold)
+    (list "MIOT_HARNESS_AGENTS_MAX_TURNS" .Values.agents.maxTurns)
+    (list "MIOT_HARNESS_AGENTS_CRITIC_ENABLED" .Values.agents.criticEnabled)
+    (list "MIOT_HARNESS_AGENTS_SUPERVISOR_MODE" .Values.agents.supervisorMode)
+    (list "MIOT_HARNESS_AGENTS_FILTER_EXPERT_MODEL" .Values.agents.models.filterExpert)
+    (list "MIOT_HARNESS_AGENTS_ANALYST_MODEL" .Values.agents.models.analyst)
+    (list "MIOT_HARNESS_AGENTS_SYNTHESIZER_MODEL" .Values.agents.models.synthesizer)
+    (list "MIOT_HARNESS_AGENTS_CRITIC_MODEL" .Values.agents.models.critic)
+    (list "MIOT_HARNESS_AGENTS_SUMMARIZER_MODEL" .Values.agents.models.summarizer)
+    (list "MIOT_HARNESS_AGENTS_SYNTHESIZER_STREAM" .Values.agents.synthesizerStream)
+    (list "MIOT_HARNESS_AGENTS_SYNTHESIZER_THINKING_BUDGET" .Values.agents.synthesizerThinkingBudget)
+    (list "MIOT_HARNESS_INTENT_ROUTER_MODEL" .Values.intentRouter.model)
+    (list "MIOT_HARNESS_INTENT_ROUTER_CONFIDENCE_THRESHOLD" .Values.intentRouter.confidenceThreshold)
+    (list "MIOT_HARNESS_CONVERSATION_TOKEN_BUDGET" .Values.conversationTokenBudget)
+    (list "MIOT_HARNESS_IDENTITY_SKEW_SECONDS" .Values.identity.skewSeconds)
+    (list "MIOT_HARNESS_LANGFUSE_HOST" .Values.observability.langfuse.host)
+}}
+{{- $name := index $pair 0 }}
+{{- $value := index $pair 1 }}
+{{- if and (not (kindIs "invalid" $value)) (ne (toString $value) "") }}
+- name: {{ $name }}
+  value: {{ $value | quote }}
 {{- end }}
 {{- end }}
-
-{{- define "miot-harness.anthropicSecretKey" -}}
-{{- if .Values.anthropic.existingSecret }}
-{{- .Values.anthropic.existingSecretKey | default "api-key" }}
-{{- else }}
-{{- "anthropic-api-key" }}
+{{- if .Values.observability.otel.enabled }}
+# OTel exporter (off by default — nothing rendered when disabled).
+- name: MIOT_HARNESS_OTEL_ENABLED
+  value: "true"
+{{- with .Values.observability.otel.endpoint }}
+- name: MIOT_HARNESS_OTEL_ENDPOINT
+  value: {{ . | quote }}
 {{- end }}
+{{- with .Values.observability.otel.serviceName }}
+- name: MIOT_HARNESS_OTEL_SERVICE_NAME
+  value: {{ . | quote }}
 {{- end }}
-
-{{- define "miot-harness.openaiSecretName" -}}
-{{- if .Values.openai.existingSecret }}
-{{- .Values.openai.existingSecret }}
-{{- else }}
-{{- include "miot-harness.credentialsSecretName" . }}
+- name: MIOT_HARNESS_OTEL_ENVIRONMENT
+  value: {{ .Values.observability.otel.environment | default .Values.env | quote }}
 {{- end }}
+# Credentials. Always projected via secretKeyRef so values never appear
+# in `kubectl describe pod`. Each ref resolves to the user-provided
+# existingSecret, or to the chart-managed Secret (templates/secret.yaml)
+# when the literal-value path is used.
+{{- if or .Values.datasource.existingSecret .Values.datasource.dsn }}
+- name: MIOT_HARNESS_DATASOURCE_DSN
+  valueFrom:
+    secretKeyRef:
+      {{- include "miot-harness.credentialRef" (list . .Values.datasource "dsn" "datasource-dsn") | nindent 6 }}
 {{- end }}
-
-{{- define "miot-harness.openaiSecretKey" -}}
-{{- if .Values.openai.existingSecret }}
-{{- .Values.openai.existingSecretKey | default "api-key" }}
-{{- else }}
-{{- "openai-api-key" }}
+{{- if or .Values.anthropic.existingSecret .Values.anthropic.apiKey }}
+- name: ANTHROPIC_API_KEY
+  valueFrom:
+    secretKeyRef:
+      {{- include "miot-harness.credentialRef" (list . .Values.anthropic "api-key" "anthropic-api-key") | nindent 6 }}
+{{- end }}
+{{- if or .Values.openai.existingSecret .Values.openai.apiKey }}
+- name: OPENAI_API_KEY
+  valueFrom:
+    secretKeyRef:
+      {{- include "miot-harness.credentialRef" (list . .Values.openai "api-key" "openai-api-key") | nindent 6 }}
+{{- end }}
+{{- if or .Values.google.existingSecret .Values.google.apiKey }}
+- name: GOOGLE_API_KEY
+  valueFrom:
+    secretKeyRef:
+      {{- include "miot-harness.credentialRef" (list . .Values.google "api-key" "google-api-key") | nindent 6 }}
+{{- end }}
+{{- $lf := .Values.observability.langfuse }}
+{{- if or $lf.existingSecret $lf.publicKey }}
+- name: MIOT_HARNESS_LANGFUSE_PUBLIC_KEY
+  valueFrom:
+    secretKeyRef:
+      {{- include "miot-harness.credentialRef" (list . (dict "existingSecret" $lf.existingSecret "existingSecretKey" $lf.existingSecretKeys.publicKey) "public-key" "langfuse-public-key") | nindent 6 }}
+{{- end }}
+{{- if or $lf.existingSecret $lf.secretKey }}
+- name: MIOT_HARNESS_LANGFUSE_SECRET_KEY
+  valueFrom:
+    secretKeyRef:
+      {{- include "miot-harness.credentialRef" (list . (dict "existingSecret" $lf.existingSecret "existingSecretKey" $lf.existingSecretKeys.secretKey) "secret-key" "langfuse-secret-key") | nindent 6 }}
+{{- end }}
+{{- if or .Values.identity.existingSecret .Values.identity.signingKey }}
+- name: MIOT_HARNESS_IDENTITY_SIGNING_KEY
+  valueFrom:
+    secretKeyRef:
+      {{- include "miot-harness.credentialRef" (list . .Values.identity "signing-key" "identity-signing-key") | nindent 6 }}
 {{- end }}
 {{- end }}
