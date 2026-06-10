@@ -85,6 +85,19 @@ miot-modulith:
 # ModularIoT Harness — multi-agent backend (FastAPI). Default disabled
 # so existing umbrella users don't suddenly get an agent runtime they
 # didn't ask for. Enable with `--set miot-harness.enabled=true`.
-# Full parameters: https://microboxlabs.github.io/helm-charts/charts/modulariot/miot-harness
+# Since chart 0.3.0 the config surface follows the datasource-agnostic
+# refactor (modulariot#604): `datasource.*` / `agents.*` instead of the
+# old `nexo.*` block. The subchart only renders env vars you set, so a
+# minimal enablement needs just the secrets:
+#
+# miot-harness:
+#   enabled: true
+#   env: "prod"
+#   datasource:
+#     existingSecret: "harness-datasource"   # key: dsn
+#   anthropic:
+#     existingSecret: "harness-anthropic"    # key: api-key
+#
+# Full parameters: https://microboxlabs.github.io/helm-charts/en/charts/modulariot/miot-harness
 miot-harness:
   enabled: false
