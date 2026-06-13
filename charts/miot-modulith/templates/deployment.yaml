@@ -48,7 +48,7 @@ spec:
             - name: QUARKUS_DATASOURCE_REACTIVE_URL
               value: {{ include "miot-modulith.databaseReactiveUrl" . | quote }}
             - name: QUARKUS_DATASOURCE_USERNAME
-              {{- if .Values.postgresql.external.existingSecret }}
+              {{- if and .Values.postgresql.external.existingSecret .Values.postgresql.external.existingSecretUsernameKey }}
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.postgresql.external.existingSecret }}

@@ -136,6 +136,8 @@ postgresql:
     password: "miot"
     # Use an existing secret instead of the above username/password fields.
     existingSecret: ""
+    # Leave empty to use the plain username above while reading only the
+    # password from existingSecret.
     existingSecretUsernameKey: "username"
     existingSecretPasswordKey: "password"
 
