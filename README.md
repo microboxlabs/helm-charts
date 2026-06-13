@@ -31,6 +31,7 @@ helm install my-release microboxlabs/<chart-name>
 |-------|-------------|
 | `modulariot` | Umbrella chart - deploys all ModularIoT components together |
 | `miot-app` | Main ModularIoT application (Next.js with auth & maps) |
+| `miot-stack` | Focused umbrella chart for the app and Quarkus modulith |
 | `miot-docs` | ModularIoT documentation site (Next.js/Nextra) |
 | `miot-web-site` | ModularIoT marketing website (Next.js) |
 
@@ -83,6 +84,7 @@ cd helm-charts
 # Lint charts
 helm lint charts/modulariot
 helm lint charts/miot-app
+helm lint charts/miot-stack
 helm lint charts/miot-docs
 helm lint charts/miot-web-site
 helm lint charts/miot-calendar
@@ -91,6 +93,7 @@ helm lint charts/quarkus-sse
 # Template a chart locally
 helm template my-release charts/modulariot
 helm template my-release charts/miot-app
+helm template my-release charts/miot-stack
 ```
 
 ### Documentation Site

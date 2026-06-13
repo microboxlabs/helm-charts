@@ -1,0 +1,12 @@
+ModularIoT stack has been deployed.
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+Components:
+{{- if index .Values "miot-app" "enabled" }}
+  - miot-app
+{{- end }}
+{{- if index .Values "miot-modulith" "enabled" }}
+  - miot-modulith
+{{- end }}

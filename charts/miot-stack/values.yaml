@@ -1,0 +1,15 @@
+global:
+  imagePullSecrets: []
+  labels: {}
+
+miot-app:
+  enabled: true
+  image:
+    repository: ghcr.io/microboxlabs/miot-app
+    tag: ""
+
+miot-modulith:
+  enabled: true
+  image:
+    repository: ghcr.io/microboxlabs/miot-srv
+    tag: ""
