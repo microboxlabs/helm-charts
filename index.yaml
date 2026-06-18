@@ -349,6 +349,30 @@ entries:
   miot-app:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2026-06-18T14:12:08.737317438Z"
+    description: A Helm chart for ModularIoT App - Main Next.js application with authentication
+      and maps
+    digest: 2658df907c987de63a1f82c13702e8341fa91136c88b448ec35ccb401fb9e3f8
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - application
+    - nextjs
+    - auth
+    - maps
+    - modulariot
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-app
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-app-0.3.2/miot-app-0.3.2.tgz
+    version: 0.3.2
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2026-04-04T20:19:32.990070058Z"
     description: A Helm chart for ModularIoT App - Main Next.js application with authentication
       and maps
@@ -748,6 +772,37 @@ entries:
   miot-stack:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2026-06-18T14:12:08.975953198Z"
+    dependencies:
+    - condition: miot-app.enabled
+      name: miot-app
+      repository: file://../miot-app
+      version: 0.3.2
+    - condition: miot-modulith.enabled
+      name: miot-modulith
+      repository: file://../miot-modulith
+      version: 0.4.2
+    description: Umbrella Helm chart for the ModularIoT app and Quarkus modulith
+    digest: a9e33be25a015c6c86e6257649e00f55b7b87868bcd0101884a3daf5943731da
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - modulariot
+    - iot
+    - platform
+    - umbrella
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-stack
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-stack-0.1.1/miot-stack-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2026-06-13T17:13:14.194496316Z"
     dependencies:
     - condition: miot-app.enabled
@@ -803,6 +858,50 @@ entries:
     - https://github.com/microboxlabs/helm-charts/releases/download/miot-web-site-0.1.0/miot-web-site-0.1.0.tgz
     version: 0.1.0
   modulariot:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-06-18T14:12:09.184614162Z"
+    dependencies:
+    - condition: miot-docs.enabled
+      name: miot-docs
+      repository: file://../miot-docs
+      version: 0.1.0
+    - condition: miot-web-site.enabled
+      name: miot-web-site
+      repository: file://../miot-web-site
+      version: 0.1.0
+    - condition: miot-app.enabled
+      name: miot-app
+      repository: file://../miot-app
+      version: 0.3.2
+    - condition: miot-modulith.enabled
+      name: miot-modulith
+      repository: file://../miot-modulith
+      version: 0.4.2
+    - condition: miot-harness.enabled
+      name: miot-harness
+      repository: file://../miot-harness
+      version: 0.3.0
+    description: An umbrella Helm chart for ModularIoT platform - includes docs, website,
+      and main app
+    digest: 7ecc2b66f74f6c82630f717fcdbdc917189829c4e5e3b0b39524a17312fae560
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - modulariot
+    - iot
+    - platform
+    - umbrella
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: modulariot
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/modulariot-0.2.1/modulariot-0.2.1.tgz
+    version: 0.2.1
   - apiVersion: v2
     appVersion: 1.0.0
     created: "2026-06-10T16:07:10.832353943Z"
@@ -936,4 +1035,4 @@ entries:
     urls:
     - quarkus-sse/quarkus-sse-0.1.0.tgz
     version: 0.1.0
-generated: "2026-06-13T17:13:14.194554144Z"
+generated: "2026-06-18T14:12:09.184683321Z"
