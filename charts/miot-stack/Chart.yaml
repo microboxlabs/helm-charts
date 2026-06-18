@@ -2,7 +2,7 @@ apiVersion: v2
 name: miot-stack
 description: Umbrella Helm chart for the ModularIoT app and Quarkus modulith
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "1.0.0"
 keywords:
   - modulariot
@@ -19,7 +19,7 @@ maintainers:
 
 dependencies:
   - name: miot-app
-    version: "0.3.1"
+    version: "0.3.2"
     repository: "file://../miot-app"
     condition: miot-app.enabled
   - name: miot-modulith

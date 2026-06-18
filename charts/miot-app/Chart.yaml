@@ -2,7 +2,7 @@ apiVersion: v2
 name: miot-app
 description: A Helm chart for ModularIoT App - Main Next.js application with authentication and maps
 type: application
-version: 0.3.1
+version: 0.3.2
 appVersion: "1.0.0"
 keywords:
   - application
