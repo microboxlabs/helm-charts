@@ -1,9 +1,9 @@
 dependencies:
 - name: miot-app
   repository: file://../miot-app
-  version: 0.3.1
+  version: 0.3.2
 - name: miot-modulith
   repository: file://../miot-modulith
   version: 0.4.2
-digest: sha256:2900caf631296264b60641e0885892d0131bf9abeedfbfdc26fdeb561e2616a1
-generated: "2026-06-13T12:53:58.010458-04:00"
+digest: sha256:d1bdc240d1b06aa95fa5b09734ad41ea4b8aa761aa78ff40e40e843985063dc9
+generated: "2026-06-18T09:22:31.493067-04:00"

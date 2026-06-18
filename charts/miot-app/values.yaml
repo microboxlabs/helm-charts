@@ -58,6 +58,10 @@ ingress:
   #  - secretName: app-tls
   #    hosts:
   #      - app.modulariot.local
+  redirectRoot:
+    enabled: false
+    to: /app
+    code: "308"
 
 # APISIX Route — alternative to standard Ingress, uses ApisixRoute CRD
 # Requires APISIX Ingress Controller with spec.ingressClassName support

@@ -7,12 +7,12 @@ dependencies:
   version: 0.1.0
 - name: miot-app
   repository: file://../miot-app
-  version: 0.3.1
+  version: 0.3.2
 - name: miot-modulith
   repository: file://../miot-modulith
-  version: 0.4.1
+  version: 0.4.2
 - name: miot-harness
   repository: file://../miot-harness
   version: 0.3.0
-digest: sha256:4f097410e523331dfbb88c507390f041ba2a49c34081752af17bf0f0110b17f2
-generated: "2026-06-10T11:51:56.046973-04:00"
+digest: sha256:9ab6bedbd4fb1299caf8c7906fcb3a73c8be5e6fe802c08d85753c139bc6740d
+generated: "2026-06-18T09:49:25.369852-04:00"
