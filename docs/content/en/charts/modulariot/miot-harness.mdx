@@ -95,7 +95,7 @@ New in 0.3.0: `datasource.kind`, `nexo.explainCostThreshold`, `agents.synthesize
 | `fullnameOverride` | Override full name | `""` |
 | `podAnnotations` | Pod annotations | `{}` |
 | `podLabels` | Pod labels | `{}` |
-| `podSecurityContext` | Pod-level security context | `{}` |
+| `podSecurityContext` | Pod-level security context | `{fsGroup: 65534, fsGroupChangePolicy: OnRootMismatch}` |
 | `nodeSelector` | Node selector | `{}` |
 | `tolerations` | Tolerations | `[]` |
 | `affinity` | Affinity | `{}` |
@@ -335,7 +335,7 @@ Standard `networking.k8s.io/v1` NetworkPolicy is L3/L4 only — pair with a CNI 
 
 ### Persistence
 
-The workspace volume at `/app/.miot-workspace` is **always** mounted (the read-only rootfs requires it; the image sets `MIOT_HARNESS_WORKSPACE_DIR` to that path). Default emptyDir survives container restarts but not pod rescheduling; opt in to PVC for `run_store` durability.
+The workspace volume at `/app/.miot-workspace` is **always** mounted (the read-only rootfs requires it; the image sets `MIOT_HARNESS_WORKSPACE_DIR` to that path). Default emptyDir survives container restarts but not pod rescheduling; opt in to PVC for `run_store` and writable context/skills durability.
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
@@ -345,6 +345,35 @@ The workspace volume at `/app/.miot-workspace` is **always** mounted (the read-o
 | `persistence.accessModes` | Access modes | `[ReadWriteOnce]` |
 | `persistence.size` | Storage request | `1Gi` |
 | `persistence.annotations` | PVC annotations | `{}` |
+
+### Writable custom instructions and skills
+
+Set `contextSkills.writable=true` to load custom instructions from
+`/app/.miot-workspace/context` and skills from
+`/app/.miot-workspace/skills`. An init container seeds both directories with
+the defaults packaged in the Harness image. It copies only missing files, so
+operator changes are not overwritten during an upgrade.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `contextSkills.writable` | Read context and skills from writable workspace directories | `false` |
+| `contextSkills.seedDefaults` | Seed missing packaged defaults with an init container | `true` |
+| `contextSkills.initContainer.resources` | Seeder resource requests/limits | `{}` |
+
+For durable customizations, enable both features:
+
+```yaml
+contextSkills:
+  writable: true
+persistence:
+  enabled: true
+  size: 1Gi
+```
+
+The files are loaded at process startup; restart the Deployment after editing
+them. The default claim is `ReadWriteOnce`, which is appropriate for the
+default single replica. Select a `ReadWriteMany` storage class and access mode
+before scheduling multiple replicas on different nodes.
 
 ## Example configurations
 

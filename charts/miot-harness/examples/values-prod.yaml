@@ -59,3 +59,8 @@ resources:
 persistence:
   enabled: true
   size: 10Gi
+
+# Store operator-managed custom instructions and skills on the workspace PVC.
+# Restart the Deployment after editing the files; they are loaded at boot.
+contextSkills:
+  writable: true

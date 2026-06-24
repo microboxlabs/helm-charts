@@ -13,6 +13,6 @@ dependencies:
   version: 0.4.2
 - name: miot-harness
   repository: file://../miot-harness
-  version: 0.3.0
-digest: sha256:9ab6bedbd4fb1299caf8c7906fcb3a73c8be5e6fe802c08d85753c139bc6740d
-generated: "2026-06-18T09:49:25.369852-04:00"
+  version: 0.4.0
+digest: sha256:50ecd495e1d0756cfc803c55c71e835c869ac9c732162d959fc9b5cf6b301c12
+generated: "2026-06-24T15:49:52.016518-04:00"

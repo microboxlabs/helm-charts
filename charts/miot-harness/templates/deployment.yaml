@@ -32,6 +32,33 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.contextSkills.writable }}
+      initContainers:
+        - name: prepare-context-skills
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              mkdir -p /workspace/context /workspace/skills
+              {{- if .Values.contextSkills.seedDefaults }}
+              defaults="$(python -c 'from pathlib import Path; import miot_harness; print(Path(miot_harness.__file__).parent / "context_skills" / "defaults")')"
+              cp -Rn "${defaults}/context/." /workspace/context/
+              cp -Rn "${defaults}/skills/." /workspace/skills/
+              {{- end }}
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+          {{- with .Values.contextSkills.initContainer.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           {{- with .Values.securityContext }}

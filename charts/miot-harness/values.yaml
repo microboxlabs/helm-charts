@@ -38,8 +38,11 @@ podAnnotations: {}
 # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 podLabels: {}
 
-podSecurityContext: {}
-  # fsGroup: 2000
+# The workspace is written by UID/GID 65534. fsGroup also makes dynamically
+# provisioned PVCs writable without weakening the container security context.
+podSecurityContext:
+  fsGroup: 65534
+  fsGroupChangePolicy: OnRootMismatch
 
 # Container-level security context. Matches the harness Dockerfile:
 # the image runs as UID 65534 (`nobody`) on a read-only rootfs with only
@@ -432,10 +435,23 @@ metrics:
     labels: {}
     # release: prometheus
 
+# Writable custom instructions and skills. When enabled, an init container
+# seeds the packaged defaults into the workspace without overwriting existing
+# files, then points the harness file sources at those writable directories.
+# Pair with persistence.enabled=true when operator/API changes must survive a
+# Pod replacement; with the default emptyDir they survive container restarts
+# only. Content is loaded at process boot, so restart the Pod after edits.
+contextSkills:
+  writable: false
+  seedDefaults: true
+  initContainer:
+    resources: {}
+
 # Workspace persistence. The chart ALWAYS mounts a writable volume at
 # `/app/.miot-workspace` (required because the container runs with
 # readOnlyRootFilesystem=true). Default emptyDir survives container
-# restarts but not pod rescheduling; opt-in PVC for run_store durability.
+# restarts but not pod rescheduling; opt-in PVC for run_store and writable
+# context/skills durability.
 persistence:
   enabled: false
   # If set, chart skips PVC creation and references this claim directly.
