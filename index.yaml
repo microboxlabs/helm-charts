@@ -520,6 +520,31 @@ entries:
   miot-harness:
   - apiVersion: v2
     appVersion: 0.1.0
+    created: "2026-06-24T19:59:26.812047168Z"
+    description: A Helm chart for MIOT Harness — multi-agent backend (FastAPI) for
+      ASK MIOT
+    digest: 47f84014d7d6e6d034ae59c619f89945019338eef55c341d6fb41390b1d1b476
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - modulariot
+    - harness
+    - ai
+    - agents
+    - fastapi
+    - python
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-harness
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-harness-0.4.0/miot-harness-0.4.0.tgz
+    version: 0.4.0
+  - apiVersion: v2
+    appVersion: 0.1.0
     created: "2026-06-10T16:07:10.398281276Z"
     description: A Helm chart for MIOT Harness — multi-agent backend (FastAPI) for
       ASK MIOT
@@ -860,6 +885,50 @@ entries:
   modulariot:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2026-06-24T19:59:26.978465205Z"
+    dependencies:
+    - condition: miot-docs.enabled
+      name: miot-docs
+      repository: file://../miot-docs
+      version: 0.1.0
+    - condition: miot-web-site.enabled
+      name: miot-web-site
+      repository: file://../miot-web-site
+      version: 0.1.0
+    - condition: miot-app.enabled
+      name: miot-app
+      repository: file://../miot-app
+      version: 0.3.2
+    - condition: miot-modulith.enabled
+      name: miot-modulith
+      repository: file://../miot-modulith
+      version: 0.4.2
+    - condition: miot-harness.enabled
+      name: miot-harness
+      repository: file://../miot-harness
+      version: 0.4.0
+    description: An umbrella Helm chart for ModularIoT platform - includes docs, website,
+      and main app
+    digest: e2583c3c19584e093bdc76209a73b6ae39d55c0aae4b2ed9d9c6d0fa2d705a84
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - modulariot
+    - iot
+    - platform
+    - umbrella
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: modulariot
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/modulariot-0.3.0/modulariot-0.3.0.tgz
+    version: 0.3.0
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2026-06-18T14:12:09.184614162Z"
     dependencies:
     - condition: miot-docs.enabled
@@ -1035,4 +1104,4 @@ entries:
     urls:
     - quarkus-sse/quarkus-sse-0.1.0.tgz
     version: 0.1.0
-generated: "2026-06-18T14:12:09.184683321Z"
+generated: "2026-06-24T19:59:26.978517494Z"
