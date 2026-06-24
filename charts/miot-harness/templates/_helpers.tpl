@@ -132,6 +132,14 @@ Container env for the harness. Three groups:
   value: {{ .Values.defaultUserId | quote }}
 - name: MIOT_HARNESS_REQUEST_ID_HEADER
   value: {{ .Values.requestIdHeader | quote }}
+{{- if .Values.contextSkills.writable }}
+# Writable operator-managed context and skill overlays live on the workspace
+# volume rather than the read-only image filesystem.
+- name: MIOT_HARNESS_CONTEXT_DIR
+  value: "/app/.miot-workspace/context"
+- name: MIOT_HARNESS_SKILLS_DIR
+  value: "/app/.miot-workspace/skills"
+{{- end }}
 # Datasource seam (modulariot#604)
 - name: MIOT_HARNESS_DATASOURCE_KIND
   value: {{ .Values.datasource.kind | quote }}
