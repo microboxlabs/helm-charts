@@ -5,6 +5,27 @@
 # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
 replicaCount: 1
 
+# Deployment update strategy. Defaults to `Recreate`: the harness runs
+# single-replica and (when persistence.enabled) mounts a ReadWriteOnce PVC,
+# which only one node can attach at a time. The default RollingUpdate starts
+# the NEW pod before terminating the OLD one; if the new pod schedules onto a
+# different node, the RWO disk can't attach to both nodes → "Multi-Attach
+# error", the new pod is stuck Init:0/1 and the rollout wedges at 0 ready
+# replicas (recoverable only by scaling to 0 then back to 1). Recreate
+# terminates the old pod first, so the volume detaches before the new pod
+# claims it — brief single-pod downtime on rollout is the right trade-off for
+# a single-writer workload. See microboxlabs/helm-charts#14.
+# Scaling out behind a ReadWriteMany volume? Override per-env, e.g.:
+#   strategy:
+#     type: RollingUpdate
+#     rollingUpdate:
+#       maxUnavailable: 0
+# Set `strategy: null` to drop the field entirely and fall back to the
+# Kubernetes default (RollingUpdate) — an empty map merges into the default
+# above and is NOT enough to clear it.
+strategy:
+  type: Recreate
+
 # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
 image:
   repository: ghcr.io/microboxlabs/miot-harness
