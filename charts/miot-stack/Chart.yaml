@@ -19,7 +19,7 @@ maintainers:
 
 dependencies:
   - name: miot-app
-    version: "0.3.2"
+    version: "0.3.3"
     repository: "file://../miot-app"
     condition: miot-app.enabled
   - name: miot-modulith
