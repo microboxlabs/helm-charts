@@ -1,8 +1,12 @@
 ModularIoT Modulith has been deployed!
 
 Components enabled:
-  - fleet:  {{ .Values.components.fleet.enabled }}
-  - driver: {{ .Values.components.driver.enabled }}
+  - fleet:          {{ .Values.components.fleet.enabled }}
+  - driver:         {{ .Values.components.driver.enabled }}
+  - tracking:       {{ .Values.components.tracking.enabled }}
+  - gateway:        {{ .Values.components.gateway.enabled }}
+  - integrations:   {{ .Values.components.integrations.enabled }}
+  - conversational: {{ .Values.components.conversational.enabled }}
 
 1. Get the application URL by running these commands:
 {{- if .Values.ingress.enabled }}

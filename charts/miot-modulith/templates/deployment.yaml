@@ -124,6 +124,10 @@ spec:
               value: {{ .Values.components.tracking.enabled | quote }}
             - name: MIOT_COMPONENT_GATEWAY_ENABLED
               value: {{ .Values.components.gateway.enabled | quote }}
+            - name: MIOT_COMPONENT_INTEGRATIONS_ENABLED
+              value: {{ .Values.components.integrations.enabled | quote }}
+            - name: MIOT_COMPONENT_CONVERSATIONAL_ENABLED
+              value: {{ .Values.components.conversational.enabled | quote }}
             {{- if .Values.fork.enabled }}
             # Fork engine
             - name: FORK_ENABLED
