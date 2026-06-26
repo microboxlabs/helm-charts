@@ -123,6 +123,10 @@ components:
     enabled: false
   gateway:
     enabled: false
+  integrations:
+    enabled: false
+  conversational:
+    enabled: false
 
 # PostgreSQL database configuration.
 # The modulith uses both JDBC (Flyway migrations) and reactive (Hibernate Reactive Panache)
