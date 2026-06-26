@@ -19,7 +19,7 @@ maintainers:
 
 dependencies:
   - name: miot-docs
-    version: "0.1.0"
+    version: "0.1.1"
     repository: "file://../miot-docs"
     condition: miot-docs.enabled
   - name: miot-web-site
