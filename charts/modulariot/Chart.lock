@@ -1,7 +1,7 @@
 dependencies:
 - name: miot-docs
   repository: file://../miot-docs
-  version: 0.1.0
+  version: 0.1.1
 - name: miot-web-site
   repository: file://../miot-web-site
   version: 0.1.0
@@ -14,5 +14,5 @@ dependencies:
 - name: miot-harness
   repository: file://../miot-harness
   version: 0.4.0
-digest: sha256:0c08f13249418d375b15fb2807fafb55f2e8543ffebc32d3e4f6541b5c291db1
-generated: "2026-06-25T18:23:40.242154-04:00"
+digest: sha256:5fcff1aa2d7d073530316e363fc15ba57a9fa3fff4eb86ee49d5386916728e23
+generated: "2026-06-25T20:20:06.67821-04:00"
