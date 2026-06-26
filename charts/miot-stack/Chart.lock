@@ -4,6 +4,6 @@ dependencies:
   version: 0.3.3
 - name: miot-modulith
   repository: file://../miot-modulith
-  version: 0.4.2
-digest: sha256:d8aebb4243875a4c34c73bf20b80c069595c1ac7ee411c23b13ac26e0a837fdf
-generated: "2026-06-25T18:50:17.64151-04:00"
+  version: 0.5.0
+digest: sha256:dfb983250cc851460ec3393025381eff630256c2d326e95f0007223ad8fb9872
+generated: "2026-06-25T21:39:01.278866-04:00"
