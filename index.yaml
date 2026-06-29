@@ -895,6 +895,41 @@ entries:
   miot-stack:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2026-06-29T23:17:14.919682007Z"
+    dependencies:
+    - condition: miot-docs.enabled
+      name: miot-docs
+      repository: file://../miot-docs
+      version: 0.1.1
+    - condition: miot-app.enabled
+      name: miot-app
+      repository: file://../miot-app
+      version: 0.3.3
+    - condition: miot-modulith.enabled
+      name: miot-modulith
+      repository: file://../miot-modulith
+      version: 0.5.0
+    description: Umbrella Helm chart for the ModularIoT app, docs, and Quarkus modulith
+    digest: a1ee7b2e6baf2557eee126fe451ce35eaab9773cb3a9e897b99a783974155506
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - modulariot
+    - iot
+    - platform
+    - umbrella
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-stack
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-stack-0.2.1/miot-stack-0.2.1.tgz
+    version: 0.2.1
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2026-06-26T01:46:02.214243963Z"
     dependencies:
     - condition: miot-app.enabled
@@ -1321,4 +1356,4 @@ entries:
     urls:
     - quarkus-sse/quarkus-sse-0.1.0.tgz
     version: 0.1.0
-generated: "2026-06-26T01:46:02.402667463Z"
+generated: "2026-06-29T23:17:14.919771674Z"
