@@ -568,6 +568,31 @@ entries:
   miot-harness:
   - apiVersion: v2
     appVersion: 0.1.0
+    created: "2026-07-31T22:08:03.59166145Z"
+    description: A Helm chart for MIOT Harness — multi-agent backend (FastAPI) for
+      ASK MIOT
+    digest: c1068e25e2d52eb6f56dca271e0679d3fce0264a060b084053398963f4f14b3a
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - modulariot
+    - harness
+    - ai
+    - agents
+    - fastapi
+    - python
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-harness
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-harness-0.6.0/miot-harness-0.6.0.tgz
+    version: 0.6.0
+  - apiVersion: v2
+    appVersion: 0.1.0
     created: "2026-06-25T23:51:32.155010703Z"
     description: A Helm chart for MIOT Harness — multi-agent backend (FastAPI) for
       ASK MIOT
@@ -892,6 +917,23 @@ entries:
     urls:
     - https://github.com/microboxlabs/helm-charts/releases/download/miot-modulith-0.1.0/miot-modulith-0.1.0.tgz
     version: 0.1.0
+  miot-observability:
+  - apiVersion: v2
+    appVersion: 3.224.1
+    created: "2026-07-31T22:08:03.797223978Z"
+    dependencies:
+    - condition: langfuse.enabled
+      name: langfuse
+      repository: https://langfuse.github.io/langfuse-k8s
+      version: 1.5.41
+    description: Optional Langfuse observability stack for ModularIoT development
+      environments
+    digest: bf1ac7c56aeb7462b4e8c0397b16590754d4956be6a07eaec71da2e1954f782f
+    name: miot-observability
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-observability-0.1.0/miot-observability-0.1.0.tgz
+    version: 0.1.0
   miot-stack:
   - apiVersion: v2
     appVersion: 1.0.0
@@ -1047,6 +1089,54 @@ entries:
     - https://github.com/microboxlabs/helm-charts/releases/download/miot-web-site-0.1.0/miot-web-site-0.1.0.tgz
     version: 0.1.0
   modulariot:
+  - apiVersion: v2
+    appVersion: 0.5.20
+    created: "2026-07-31T22:08:03.984245731Z"
+    dependencies:
+    - condition: miot-docs.enabled
+      name: miot-docs
+      repository: file://../miot-docs
+      version: 0.1.1
+    - condition: miot-web-site.enabled
+      name: miot-web-site
+      repository: file://../miot-web-site
+      version: 0.1.0
+    - condition: miot-app.enabled
+      name: miot-app
+      repository: file://../miot-app
+      version: 0.3.3
+    - condition: miot-modulith.enabled
+      name: miot-modulith
+      repository: file://../miot-modulith
+      version: 0.5.0
+    - condition: miot-harness.enabled
+      name: miot-harness
+      repository: file://../miot-harness
+      version: 0.6.0
+    - condition: miot-observability.enabled
+      name: miot-observability
+      repository: file://../miot-observability
+      version: 0.1.0
+    description: An umbrella Helm chart for ModularIoT platform - includes docs, website,
+      and main app
+    digest: 30729adc83a0e0d6846ab2cff7c44cc6d309d551bc4791272ed1c135a575fcd8
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - modulariot
+    - iot
+    - platform
+    - umbrella
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: modulariot
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/modulariot-0.5.0/modulariot-0.5.0.tgz
+    version: 0.5.0
   - apiVersion: v2
     appVersion: 0.5.20
     created: "2026-06-26T01:46:02.402557938Z"
@@ -1356,4 +1446,4 @@ entries:
     urls:
     - quarkus-sse/quarkus-sse-0.1.0.tgz
     version: 0.1.0
-generated: "2026-06-29T23:17:14.919771674Z"
+generated: "2026-07-31T22:08:03.98432718Z"
