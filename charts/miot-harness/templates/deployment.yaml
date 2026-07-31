@@ -107,6 +107,55 @@ spec:
             {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+        {{- if .Values.observability.collector.enabled }}
+        - name: otel-collector
+          image: "{{ .Values.observability.collector.image.repository }}:{{ .Values.observability.collector.image.tag }}"
+          imagePullPolicy: {{ .Values.observability.collector.image.pullPolicy }}
+          args:
+            - --config=/etc/otelcol/collector.yaml
+          env:
+            - name: LANGFUSE_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  {{- $lf := .Values.observability.langfuse }}
+                  {{- include "miot-harness.credentialRef" (list . (dict "existingSecret" $lf.existingSecret "existingSecretKey" $lf.existingSecretKeys.publicKey) "public-key" "langfuse-public-key") | nindent 18 }}
+            - name: LANGFUSE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  {{- $lf := .Values.observability.langfuse }}
+                  {{- include "miot-harness.credentialRef" (list . (dict "existingSecret" $lf.existingSecret "existingSecretKey" $lf.existingSecretKeys.secretKey) "secret-key" "langfuse-secret-key") | nindent 18 }}
+          ports:
+            - name: otlp-grpc
+              containerPort: 4317
+              protocol: TCP
+            - name: otel-health
+              containerPort: 13133
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: otel-health
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: otel-health
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: otel-collector-config
+              mountPath: /etc/otelcol
+              readOnly: true
+          {{- with .Values.observability.collector.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
         {{- if .Values.connectivity.tunnel.enabled }}
         # Tunnel sidecar — kubectl port-forward exposing Coordinador on
         # localhost:{{ .Values.connectivity.tunnel.port }}. Sidecar inherits
@@ -167,6 +216,11 @@ spec:
             items:
               - key: {{ .Values.connectivity.tunnel.kubeconfigSecretKey | default "kubeconfig" }}
                 path: config
+        {{- end }}
+        {{- if .Values.observability.collector.enabled }}
+        - name: otel-collector-config
+          configMap:
+            name: {{ include "miot-harness.fullname" . }}-otel-collector
         {{- end }}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}

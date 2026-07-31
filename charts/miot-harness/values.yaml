@@ -329,7 +329,8 @@ observability:
     # without a second knob.
     environment: ""            # MIOT_HARNESS_OTEL_ENVIRONMENT
   langfuse:
-    # Langfuse base URL (used by tracing + the cost-report CLI).
+    # Langfuse base URL used by the cost-report CLI. Trace ingestion is
+    # configured on the collector below, not on the harness process.
     host: null                 # null → "http://localhost:3000"
     publicKey: ""              # pk-lf-… literal (chart creates a Secret).
     secretKey: ""              # sk-lf-… literal (chart creates a Secret).
@@ -337,6 +338,32 @@ observability:
     existingSecretKeys:
       publicKey: "public-key"
       secretKey: "secret-key"
+  collector:
+    # Optional per-Pod OTel gateway. The harness exports OTLP/gRPC to this
+    # sidecar on localhost; the sidecar converts it to authenticated
+    # OTLP/HTTP for Langfuse. Keeping the receiver inside the Pod avoids
+    # exposing an unauthenticated cluster-wide telemetry Service.
+    enabled: false
+    image:
+      repository: otel/opentelemetry-collector-contrib
+      tag: "0.153.0"
+      pullPolicy: IfNotPresent
+    # Base OTLP endpoint; the collector appends /v1/traces.
+    # Self-hosted example:
+    #   http://dev-mintral-langfuse-web:3000/api/public/otel
+    # Langfuse Cloud example:
+    #   https://cloud.langfuse.com/api/public/otel
+    langfuseEndpoint: ""
+    # Langfuse v4 direct-OTLP projects should send ingestion version 4.
+    # Leave empty for the v3 self-hosted chart.
+    ingestionVersion: ""
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
 
 # Provider API keys. Three modes per provider (in precedence order):
 #   1. existingSecret non-empty     -> chart references the Secret.

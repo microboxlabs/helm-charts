@@ -26,15 +26,20 @@ jobs:
         run: |
           helm repo add alfresco https://alfresco.github.io/alfresco-helm-charts/
           helm repo add bitnami https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami/
+          helm repo add langfuse https://langfuse.github.io/langfuse-k8s
           helm repo update
 
       - name: Lint custom charts
         run: |
+          # Build the nested remote dependency before the umbrella packages
+          # the local miot-observability chart.
+          helm dependency build charts/miot-observability
           for chart in charts/*/Chart.yaml; do
             chart_dir=$(dirname "$chart")
             # Skip alfresco subtree directory (it's not a chart itself)
             if [[ "$chart_dir" != "charts/alfresco" ]]; then
               echo "Linting $chart_dir"
+              helm dependency build "$chart_dir"
               helm lint "$chart_dir"
             fi
           done
@@ -74,8 +79,19 @@ jobs:
         run: |
           helm repo add alfresco https://alfresco.github.io/alfresco-helm-charts/
           helm repo add bitnami https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami/
+          helm repo add langfuse https://langfuse.github.io/langfuse-k8s
           helm repo add self https://microboxlabs.github.io/helm-charts/
           helm repo update
+
+      - name: Build custom chart dependencies
+        run: |
+          helm dependency build charts/miot-observability
+          for chart in charts/*/Chart.yaml; do
+            chart_dir=$(dirname "$chart")
+            if [[ "$chart_dir" != "charts/alfresco" ]]; then
+              helm dependency build "$chart_dir"
+            fi
+          done
 
       - name: Release custom charts
         uses: helm/chart-releaser-action@v1.6.0
