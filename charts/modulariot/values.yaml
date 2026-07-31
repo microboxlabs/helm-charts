@@ -101,3 +101,10 @@ miot-modulith:
 # Full parameters: https://microboxlabs.github.io/helm-charts/en/charts/modulariot/miot-harness
 miot-harness:
   enabled: false
+
+# Langfuse development observability stack. This deploys stateful PostgreSQL,
+# Valkey, MinIO, and ClickHouse dependencies, so it remains opt-in.
+miot-observability:
+  enabled: false
+  langfuse:
+    enabled: false

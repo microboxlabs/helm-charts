@@ -268,6 +268,11 @@ When a signing key is present, tenant/user ids in request bodies are ignored in 
 
 Nothing OTel-related is rendered while `otel.enabled: false`. `otel.environment` falls back to `env`, so prod traces tag themselves `prod` without a second knob. Langfuse keys are credentials and follow the `existingSecret` / literal pattern.
 
+The harness exporter speaks OTLP/gRPC. Langfuse ingestion speaks authenticated
+OTLP/HTTP, so enable the bundled collector sidecar when there is no shared
+collector in the cluster. The resulting path is harness → collector → Langfuse;
+Langfuse web and worker services own all ClickHouse access.
+
 | Parameter | Description | Default | Env var |
 |-----------|-------------|---------|---------|
 | `observability.otel.enabled` | Enable the OTel exporter | `false` | `MIOT_HARNESS_OTEL_ENABLED` |
@@ -280,6 +285,11 @@ Nothing OTel-related is rendered while `otel.enabled: false`. `otel.environment`
 | `observability.langfuse.existingSecret` | Secret holding both keys (production) | `""` | (same) |
 | `observability.langfuse.existingSecretKeys.publicKey` | Field for the public key | `public-key` | (same) |
 | `observability.langfuse.existingSecretKeys.secretKey` | Field for the secret key | `secret-key` | (same) |
+| `observability.collector.enabled` | Add an OTel Collector sidecar that bridges gRPC to Langfuse OTLP/HTTP | `false` | — |
+| `observability.collector.langfuseEndpoint` | Langfuse OTLP base endpoint, normally `http://<langfuse-web>:3000/api/public/otel` | `""` (required when enabled) | — |
+| `observability.collector.ingestionVersion` | Optional `x-langfuse-ingestion-version` header (`4` for compatible v4 deployments) | `""` | — |
+| `observability.collector.image.*` | Collector image coordinates | `otel/opentelemetry-collector-contrib:0.153.0` | — |
+| `observability.collector.resources` | Sidecar requests and limits | `50m/128Mi` request, `250m/256Mi` limit | — |
 
 ### Provider API keys
 
@@ -410,10 +420,13 @@ anthropic:
 observability:
   otel:
     enabled: true
-    endpoint: "http://otel-collector.observability:4317"
+    endpoint: "http://localhost:4317"
   langfuse:
     host: "https://<your-langfuse-host>"
     existingSecret: "harness-langfuse"  # keys: public-key, secret-key
+  collector:
+    enabled: true
+    langfuseEndpoint: "https://<your-langfuse-host>/api/public/otel"
 
 resources:
   requests:

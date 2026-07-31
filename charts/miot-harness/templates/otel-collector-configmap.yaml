@@ -1,0 +1,68 @@
+{{- if .Values.observability.collector.enabled }}
+{{- $collector := .Values.observability.collector }}
+{{- $langfuse := .Values.observability.langfuse }}
+{{- $endpoint := required "observability.collector.langfuseEndpoint is required when the collector sidecar is enabled" $collector.langfuseEndpoint }}
+{{- if not .Values.observability.otel.enabled }}
+{{- fail "observability.otel.enabled must be true when the collector sidecar is enabled" }}
+{{- end }}
+{{- if not (or $langfuse.existingSecret (and $langfuse.publicKey $langfuse.secretKey)) }}
+{{- fail "Langfuse public and secret keys are required when the collector sidecar is enabled" }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "miot-harness.fullname" . }}-otel-collector
+  labels:
+    {{- include "miot-harness.labels" . | nindent 4 }}
+data:
+  collector.yaml: |
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+      basicauth/langfuse:
+        client_auth:
+          username: ${env:LANGFUSE_PUBLIC_KEY}
+          password: ${env:LANGFUSE_SECRET_KEY}
+
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 20
+      batch:
+        timeout: 1s
+        send_batch_size: 512
+        send_batch_max_size: 1024
+
+    exporters:
+      otlphttp/langfuse:
+        endpoint: {{ $endpoint | quote }}
+        auth:
+          authenticator: basicauth/langfuse
+        {{- with $collector.ingestionVersion }}
+        headers:
+          x-langfuse-ingestion-version: {{ . | quote }}
+        {{- end }}
+        sending_queue:
+          enabled: true
+          queue_size: 512
+        retry_on_failure:
+          enabled: true
+          initial_interval: 1s
+          max_interval: 30s
+          max_elapsed_time: 300s
+
+    service:
+      extensions: [health_check, basicauth/langfuse]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlphttp/langfuse]
+{{- end }}

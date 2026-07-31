@@ -1,0 +1,11 @@
+apiVersion: v2
+name: miot-observability
+description: Optional Langfuse observability stack for ModularIoT development environments
+type: application
+version: 0.1.0
+appVersion: "3.224.1"
+dependencies:
+  - name: langfuse
+    version: 1.5.41
+    repository: https://langfuse.github.io/langfuse-k8s
+    condition: langfuse.enabled

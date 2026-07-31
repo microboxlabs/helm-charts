@@ -40,10 +40,13 @@ anthropic:
 # observability:
 #   otel:
 #     enabled: true
-#     endpoint: "http://otel-collector.observability:4317"
+#     endpoint: "http://localhost:4317"
 #   langfuse:
 #     host: "https://<YOUR_LANGFUSE_HOST>"
 #     existingSecret: "harness-langfuse"  # keys: public-key, secret-key
+#   collector:
+#     enabled: true
+#     langfuseEndpoint: "https://<YOUR_LANGFUSE_HOST>/api/public/otel"
 
 # --- Optional: identity assertion (approvals feature). ---------------------
 # identity:

@@ -1,0 +1,12 @@
+{{- if .Values.langfuse.enabled }}
+Langfuse is enabled for this release.
+
+The default wrapper configuration is intended for development only:
+- one ClickHouse replica
+- one web and worker replica
+- in-cluster PostgreSQL, Valkey, MinIO, and ClickHouse
+- no ingress
+
+Access the UI with:
+  kubectl -n {{ .Release.Namespace }} port-forward service/{{ .Release.Name }}-langfuse-web 3000:3000
+{{- end }}

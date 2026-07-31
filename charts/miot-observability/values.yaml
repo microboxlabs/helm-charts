@@ -1,0 +1,119 @@
+# This wrapper is intentionally disabled unless its parent explicitly enables it.
+# The defaults below are a single-replica, non-HA development footprint.
+langfuse:
+  enabled: false
+
+  global:
+    security:
+      # Langfuse 1.5.x currently defaults to Bitnami legacy images.
+      allowInsecureImages: true
+
+  langfuse:
+    logging:
+      level: info
+      format: json
+
+    features:
+      telemetryEnabled: false
+      signUpDisabled: true
+      experimentalFeaturesEnabled: false
+
+    ingress:
+      enabled: false
+
+    nextauth:
+      # Override with the ingress URL when exposing Langfuse beyond port-forward.
+      url: http://localhost:3000
+
+    web:
+      replicas: 1
+      pdb:
+        create: false
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          cpu: "1"
+          memory: 1Gi
+
+    worker:
+      replicas: 1
+      pdb:
+        create: false
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          cpu: "1"
+          memory: 1Gi
+
+  postgresql:
+    deploy: true
+    architecture: standalone
+    auth:
+      username: langfuse
+      database: langfuse
+    primary:
+      persistence:
+        enabled: true
+        size: 8Gi
+      resourcesPreset: none
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          cpu: "1"
+          memory: 1Gi
+
+  redis:
+    deploy: true
+    architecture: standalone
+    primary:
+      persistence:
+        enabled: true
+        size: 4Gi
+      resourcesPreset: none
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+
+  clickhouse:
+    deploy: true
+    shards: 1
+    replicaCount: 1
+    clusterEnabled: false
+    resourcesPreset: none
+    zookeeper:
+      enabled: false
+    persistence:
+      enabled: true
+      storageClass: default
+      size: 32Gi
+    resources:
+      requests:
+        cpu: "1"
+        memory: 4Gi
+      limits:
+        cpu: "2"
+        memory: 8Gi
+
+  s3:
+    deploy: true
+    persistence:
+      enabled: true
+      size: 8Gi
+    resourcesPreset: none
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
