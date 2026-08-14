@@ -128,6 +128,32 @@ spec:
               value: {{ .Values.components.integrations.enabled | quote }}
             - name: MIOT_COMPONENT_CONVERSATIONAL_ENABLED
               value: {{ .Values.components.conversational.enabled | quote }}
+            - name: MIOT_COMPONENT_SYMPTOMS_ENABLED
+              value: {{ .Values.components.symptoms.enabled | quote }}
+            {{- if .Values.symptoms.routes }}
+            - name: MIOT_SYMPTOMS_ROUTES_FILE
+              value: {{ .Values.symptoms.routesFile | quote }}
+            {{- end }}
+            {{- if .Values.symptoms.pulsar.serviceUrl }}
+            - name: MIOT_SYMPTOMS_PULSAR_SERVICE_URL
+              value: {{ .Values.symptoms.pulsar.serviceUrl | quote }}
+            {{- end }}
+            {{- if .Values.symptoms.pulsar.topic }}
+            - name: MIOT_SYMPTOMS_PULSAR_TOPIC
+              value: {{ .Values.symptoms.pulsar.topic | quote }}
+            {{- end }}
+            {{- if .Values.symptoms.pulsar.subscription }}
+            - name: MIOT_SYMPTOMS_PULSAR_SUBSCRIPTION
+              value: {{ .Values.symptoms.pulsar.subscription | quote }}
+            {{- end }}
+            {{- if .Values.symptoms.pulsar.subscriptionInitialPosition }}
+            - name: MIOT_SYMPTOMS_PULSAR_SUBSCRIPTION_INITIAL_POSITION
+              value: {{ .Values.symptoms.pulsar.subscriptionInitialPosition | quote }}
+            {{- end }}
+            {{- if .Values.symptoms.pulsar.receiverQueueSize }}
+            - name: MIOT_SYMPTOMS_PULSAR_RECEIVER_QUEUE_SIZE
+              value: {{ .Values.symptoms.pulsar.receiverQueueSize | quote }}
+            {{- end }}
             {{- if .Values.fork.enabled }}
             # Fork engine
             - name: FORK_ENABLED
@@ -175,7 +201,7 @@ spec:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          {{- if or .Values.volumeMounts .Values.fork.filters }}
+          {{- if or .Values.volumeMounts .Values.fork.filters .Values.symptoms.routes }}
           volumeMounts:
             {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
@@ -185,8 +211,13 @@ spec:
               mountPath: /config/fork
               readOnly: true
             {{- end }}
+            {{- if .Values.symptoms.routes }}
+            - name: symptoms-routes
+              mountPath: /config/symptoms
+              readOnly: true
+            {{- end }}
           {{- end }}
-      {{- if or .Values.volumes .Values.fork.filters }}
+      {{- if or .Values.volumes .Values.fork.filters .Values.symptoms.routes }}
       volumes:
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
@@ -195,6 +226,11 @@ spec:
         - name: fork-filters
           configMap:
             name: {{ include "miot-modulith.fullname" . }}-fork-filters
+        {{- end }}
+        {{- if .Values.symptoms.routes }}
+        - name: symptoms-routes
+          configMap:
+            name: {{ include "miot-modulith.fullname" . }}-symptoms-routes
         {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}

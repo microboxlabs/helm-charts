@@ -1,0 +1,71 @@
+---
+suite: symptoms dispatcher
+templates:
+  - deployment.yaml
+  - configmap-symptoms-routes.yaml
+tests:
+  - it: does not render a routes ConfigMap by default
+    template: configmap-symptoms-routes.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: emits the symptoms component toggle as false by default
+    template: deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MIOT_COMPONENT_SYMPTOMS_ENABLED
+            value: "false"
+
+  - it: renders ConfigMap, mount, and pulsar env when routes are set
+    set:
+      components.symptoms.enabled: true
+      symptoms.pulsar.serviceUrl: pulsar://pulsar.example.invalid:6650
+      symptoms.pulsar.topic: persistent://tenant/namespace/example-cdc
+      symptoms.pulsar.subscription: miot-symptoms-dispatcher
+      symptoms.routes:
+        routes.json: |
+          {"routes":[{"name":"example-route","targetIds":["1"],"webhookUrl":"https://hooks.example.invalid/symptoms/example"}]}
+    asserts:
+      - template: configmap-symptoms-routes.yaml
+        equal:
+          path: metadata.name
+          value: RELEASE-NAME-miot-modulith-symptoms-routes
+      - template: configmap-symptoms-routes.yaml
+        matchRegex:
+          path: data["routes.json"]
+          pattern: hooks\.example\.invalid/symptoms/example
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MIOT_COMPONENT_SYMPTOMS_ENABLED
+            value: "true"
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MIOT_SYMPTOMS_ROUTES_FILE
+            value: /config/symptoms/routes.json
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MIOT_SYMPTOMS_PULSAR_SERVICE_URL
+            value: pulsar://pulsar.example.invalid:6650
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: symptoms-routes
+            mountPath: /config/symptoms
+            readOnly: true
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.volumes
+          content:
+            name: symptoms-routes
+            configMap:
+              name: RELEASE-NAME-miot-modulith-symptoms-routes

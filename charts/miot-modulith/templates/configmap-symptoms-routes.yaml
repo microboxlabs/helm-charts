@@ -1,0 +1,14 @@
+{{- if .Values.symptoms.routes }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "miot-modulith.fullname" . }}-symptoms-routes
+  labels:
+    {{- include "miot-modulith.labels" . | nindent 4 }}
+    app.kubernetes.io/component: symptoms-routes
+data:
+  {{- range $name, $content := .Values.symptoms.routes }}
+  {{ $name }}: |
+    {{- $content | nindent 4 }}
+  {{- end }}
+{{- end }}

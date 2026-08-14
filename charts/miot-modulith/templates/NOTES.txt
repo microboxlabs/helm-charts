@@ -7,6 +7,7 @@ Components enabled:
   - gateway:        {{ .Values.components.gateway.enabled }}
   - integrations:   {{ .Values.components.integrations.enabled }}
   - conversational: {{ .Values.components.conversational.enabled }}
+  - symptoms:       {{ .Values.components.symptoms.enabled }}
 
 1. Get the application URL by running these commands:
 {{- if .Values.ingress.enabled }}
