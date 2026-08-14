@@ -9,6 +9,7 @@ MIOT Modulith is a modular monolith built with Quarkus. Each component is indepe
 - **Fleet** - vehicle monitoring, trips, routes and geofences
 - **Driver** - driver profiles, assignments and activity tracking
 - **Tracking** - GPS asset position ingestion via pluggable messaging (Pulsar or standalone)
+- **Symptoms** - in-process dispatcher: CDC → RouteTable → optional SQL function / webhook
 - **Reactive + JDBC dual datasource** - Hibernate Reactive Panache for runtime queries, JDBC for Flyway migrations, both targeting the same PostgreSQL instance
 - **Dual JWT authentication** - HS256 for M2M device endpoints, RS256 (JWKS) for web application endpoints, both from the same Auth0 tenant
 - **Pluggable messaging** - log mode (standalone, no broker) or Pulsar for production
@@ -111,6 +112,21 @@ Each flag maps to a `MIOT_COMPONENT_*_ENABLED` environment variable resolved by 
 | `components.gateway.enabled` | Enable the routing gateway component | `false` |
 | `components.integrations.enabled` | Enable the integrations component (external connections, credential profiles) | `false` |
 | `components.conversational.enabled` | Enable the conversational component (WhatsApp channel message pool) | `false` |
+| `components.symptoms.enabled` | Enable the symptoms dispatcher (CDC RouteTable) | `false` |
+
+### Symptoms Parameters
+
+In-process symptoms dispatcher. A `rule_id` has one owner: this dispatcher or the previous dedicated symptoms workload, never both Ready. When `symptoms.routes` is non-empty the chart creates a ConfigMap and mounts it at `/config/symptoms`.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `symptoms.routes` | RouteTable files for the ConfigMap (`routes.json: \| …`) | `{}` |
+| `symptoms.routesFile` | Path injected as `MIOT_SYMPTOMS_ROUTES_FILE` | `/config/symptoms/routes.json` |
+| `symptoms.pulsar.serviceUrl` | Pulsar URL for the `symptoms-cdc` channel | `""` |
+| `symptoms.pulsar.topic` | CDC topic | `""` |
+| `symptoms.pulsar.subscription` | Shared subscription name | `""` |
+| `symptoms.pulsar.subscriptionInitialPosition` | Must stay `Latest` | `Latest` |
+| `symptoms.pulsar.receiverQueueSize` | Pulsar receiver queue size | `""` |
 
 ### Auth Parameters
 

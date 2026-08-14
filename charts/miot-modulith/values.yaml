@@ -127,6 +127,8 @@ components:
     enabled: false
   conversational:
     enabled: false
+  symptoms:
+    enabled: false
 
 # PostgreSQL database configuration.
 # The modulith uses both JDBC (Flyway migrations) and reactive (Hibernate Reactive Panache)
@@ -205,6 +207,31 @@ fork:
   #   asset-ids.txt: |
   #     SVSX88
   #     TRUCK-001
+
+# Symptoms dispatcher (CDC → RouteTable → optional SQL function / webhook).
+# When routes is non-empty the chart creates a ConfigMap and mounts it at
+# /config/symptoms. A rule_id must have one owner: this dispatcher or the
+# previous dedicated symptoms workload, never both Ready.
+symptoms:
+  routes: {}
+  # Example:
+  #   routes.json: |
+  #     {
+  #       "routes": [
+  #         {
+  #           "name": "example-route",
+  #           "targetIds": ["1"],
+  #           "webhookUrl": "https://hooks.example.invalid/symptoms/example"
+  #         }
+  #       ]
+  #     }
+  routesFile: /config/symptoms/routes.json
+  pulsar:
+    serviceUrl: ""
+    topic: ""
+    subscription: ""
+    subscriptionInitialPosition: Latest
+    receiverQueueSize: ""
 
 # Additional environment variables
 env: []
