@@ -156,50 +156,69 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
         {{- end }}
-        {{- if .Values.connectivity.tunnel.enabled }}
-        # Tunnel sidecar — kubectl port-forward exposing Coordinador on
-        # localhost:{{ .Values.connectivity.tunnel.port }}. Sidecar inherits
-        # the container-level securityContext (UID 65534, read-only rootfs);
-        # if the chosen image doesn't tolerate that, override via values.
-        - name: tunnel
-          image: {{ .Values.connectivity.tunnel.image | quote }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- with .Values.securityContext }}
+        {{- $root := . }}
+        {{- range $t := include "miot-harness.tunnels" . | fromYamlArray }}
+        # Connectivity sidecar {{ $t.name }} — makes a remote endpoint reachable
+        # from the app container, which holds a plain DSN and does not know a
+        # sidecar exists. Inherits the container-level securityContext (UID
+        # 65534, read-only rootfs) unless the entry overrides it — a tunnel that
+        # manages an interface needs to.
+        - name: {{ $t.name }}
+          image: {{ $t.image | quote }}
+          imagePullPolicy: {{ $t.imagePullPolicy | default $root.Values.image.pullPolicy }}
+          {{- with (default $root.Values.securityContext $t.securityContext) }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.connectivity.tunnel.command }}
+          {{- with $t.command }}
           command:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.connectivity.tunnel.args }}
+          {{- with $t.args }}
           args:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if $t.port }}
           ports:
-            - name: tunnel
-              containerPort: {{ .Values.connectivity.tunnel.port }}
+            - name: {{ $t.name | trunc 15 | trimSuffix "-" }}
+              containerPort: {{ $t.port }}
               protocol: TCP
+          {{- end }}
           # MANDATORY: sidecar readinessProbe. App container's liveness
           # MUST NOT depend on this — they're decoupled by design (plan 13
           # 05-observability-and-health.md).
           readinessProbe:
-            {{- toYaml .Values.connectivity.tunnel.readinessProbe | nindent 12 }}
-          {{- if .Values.connectivity.tunnel.kubeconfigSecret }}
+            {{- toYaml $t.readinessProbe | nindent 12 }}
+          {{- if or $t.kubeconfigSecret $t.env }}
           env:
+            {{- if $t.kubeconfigSecret }}
             - name: KUBECONFIG
               value: /etc/kube/config
+            {{- end }}
+            {{- with $t.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- with $t.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if or $t.kubeconfigSecret $t.volumeMounts }}
           volumeMounts:
-            - name: tunnel-kubeconfig
+            {{- if $t.kubeconfigSecret }}
+            - name: {{ $t.name }}-kubeconfig
               mountPath: /etc/kube
               readOnly: true
+            {{- end }}
+            {{- with $t.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
-          {{- with .Values.connectivity.tunnel.resources }}
+          {{- with $t.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
         {{- end }}
-      {{- $tunnelVol := and .Values.connectivity.tunnel.enabled .Values.connectivity.tunnel.kubeconfigSecret }}
       volumes:
         # workspace: PVC if persistence.enabled, else emptyDir. Always present.
         - name: workspace
@@ -209,13 +228,15 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
-        {{- if $tunnelVol }}
-        - name: tunnel-kubeconfig
+        {{- range $t := include "miot-harness.tunnels" . | fromYamlArray }}
+        {{- if $t.kubeconfigSecret }}
+        - name: {{ $t.name }}-kubeconfig
           secret:
-            secretName: {{ .Values.connectivity.tunnel.kubeconfigSecret }}
+            secretName: {{ $t.kubeconfigSecret }}
             items:
-              - key: {{ .Values.connectivity.tunnel.kubeconfigSecretKey | default "kubeconfig" }}
+              - key: {{ $t.kubeconfigSecretKey | default "kubeconfig" }}
                 path: config
+        {{- end }}
         {{- end }}
         {{- if .Values.observability.collector.enabled }}
         - name: otel-collector-config

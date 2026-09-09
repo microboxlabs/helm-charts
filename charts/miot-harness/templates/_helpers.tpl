@@ -252,3 +252,36 @@ Container env for the harness. Three groups:
       {{- include "miot-harness.credentialRef" (list . .Values.identity "signing-key" "identity-signing-key") | nindent 6 }}
 {{- end }}
 {{- end }}
+
+{{/*
+Normalized list of connectivity sidecars.
+
+`connectivity.tunnels` is the current form. `connectivity.tunnel` (singular) is
+the original single-sidecar form and is still honoured: when enabled it is
+prepended as an entry named "tunnel", so values files written against it render
+the same container they did before.
+
+Consume with: {{- range include "miot-harness.tunnels" . | fromYamlArray }}
+*/}}
+{{- define "miot-harness.tunnels" -}}
+{{- $out := list -}}
+{{- $seen := dict -}}
+{{- with .Values.connectivity.tunnel -}}
+{{- if .enabled -}}
+{{- $out = append $out (merge (dict "name" "tunnel") (omit . "enabled")) -}}
+{{- $_ := set $seen "tunnel" true -}}
+{{- end -}}
+{{- end -}}
+{{- range $i, $t := .Values.connectivity.tunnels -}}
+{{- if $t.enabled -}}
+{{- $name := required (printf "connectivity.tunnels[%d].name is required" $i) $t.name -}}
+{{- if hasKey $seen $name -}}
+{{- fail (printf "connectivity: duplicate tunnel name %s - container names must be unique within a Pod" $name) -}}
+{{- end -}}
+{{- $_ := required (printf "connectivity.tunnels[%d] (%s): readinessProbe is mandatory - a sidecar must report ready only once its path is up" $i $name) $t.readinessProbe -}}
+{{- $_ := set $seen $name true -}}
+{{- $out = append $out (omit $t "enabled") -}}
+{{- end -}}
+{{- end -}}
+{{- toYaml $out -}}
+{{- end -}}

@@ -40,12 +40,21 @@ MIOT Harness has been deployed.
    On a healthy boot you'll see the `{{ .Values.datasource.kind }}`
    provider register its tools.
 
-{{- if .Values.connectivity.tunnel.enabled }}
+{{- $tunnels := include "miot-harness.tunnels" . | fromYamlArray }}
+{{- if $tunnels }}
 
-4. Tunnel sidecar is enabled. Verify it's reaching the datasource DB:
+4. Connectivity sidecars are enabled. Each reports ready only once its path is
+   up, so a Pod that never reaches Ready points at a sidecar, not at the app:
+{{- range $t := $tunnels }}
+{{- if $t.port }}
 
-   kubectl exec -n {{ .Release.Namespace }} <pod> -c tunnel -- \
-     nc -z 127.0.0.1 {{ .Values.connectivity.tunnel.port }} && echo "tunnel up"
+   kubectl exec -n {{ $.Release.Namespace }} <pod> -c {{ $t.name }} -- \
+     nc -z 127.0.0.1 {{ $t.port }} && echo "{{ $t.name }} up"
+{{- else }}
+
+   kubectl logs -n {{ $.Release.Namespace }} <pod> -c {{ $t.name }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- if not (or .Values.datasource.dsn .Values.datasource.existingSecret) }}
 
