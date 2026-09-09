@@ -13,9 +13,9 @@ dependencies:
   version: 0.6.0
 - name: miot-harness
   repository: file://../miot-harness
-  version: 0.6.0
+  version: 0.7.0
 - name: miot-observability
   repository: file://../miot-observability
   version: 0.1.0
-digest: sha256:31efdf8b3a246e4dd8572de6367e943dfc598d79b9750d9aea68bec3714d09c4
-generated: "2026-08-13T22:57:50.412003-04:00"
+digest: sha256:ee4723ee6230ad09cf01a476ba9485c52544644ebb69239de4caaaa0c37448e4
+generated: "2026-09-09T14:23:19.868298-03:00"

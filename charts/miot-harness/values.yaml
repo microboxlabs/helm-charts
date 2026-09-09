@@ -397,14 +397,74 @@ extraEnvFrom: []
 # - secretRef:
 #     name: harness-extra-secrets
 
-# Connectivity to Coordinador. The tunnel sidecar is a dev convenience
-# (kubectl port-forward inside the Pod); production should reach
-# Coordinador via VNet peering / Private Link / PostgREST instead.
+# Connectivity sidecars.
 #
-# When `tunnel.enabled: true`, set `datasource.dsn` (or the existingSecret
-# behind it) to point at `localhost:<tunnel.port>` — the harness reads
-# the same DSN env var either way; it doesn't know there's a sidecar.
+# A tunnel makes a remote endpoint reachable from inside the Pod. The harness
+# container holds a plain DSN either way and does not know a sidecar exists —
+# that transparency is the whole point.
+#
+# `tunnels` is a list, so a deployment can reach more than one datasource: one
+# entry per remote. `tunnel` (singular, below) is the original single-sidecar
+# form; it still works and renders a container named `tunnel`, so existing
+# values files need no change. Prefer `tunnels` for anything new.
+#
+# Each entry:
+#
+#   name             required, unique within the Pod — becomes the container name
+#   image            required
+#   imagePullPolicy  defaults to image.pullPolicy
+#   command / args
+#   port             optional. Set it when the sidecar listens locally (a
+#                    port-forward or a proxy); omit it when it only manipulates
+#                    the network namespace (a VPN interface listens on nothing)
+#   securityContext  defaults to the top-level restricted `securityContext`.
+#                    Override per tunnel — a sidecar that brings up a network
+#                    interface needs NET_ADMIN and a writable rootfs, which the
+#                    default deliberately denies
+#   env / envFrom / volumeMounts   optional; pod-level `volumes` carries the
+#                    matching volume (e.g. a hostPath for /dev/net/tun)
+#   readinessProbe   MANDATORY — the sidecar must report ready only once its
+#                    path is actually up, so a broken tunnel keeps the Pod out
+#                    of the Service instead of failing every query
+#   resources
+#   kubeconfigSecret / kubeconfigSecretKey   mounts a kubeconfig at /etc/kube
+#                    and sets KUBECONFIG, for port-forward style sidecars
+#
+# Example — a WireGuard peer with no local port, alongside the port-forward:
+#
+#   tunnels:
+#     - name: wg
+#       enabled: true
+#       image: <wireguard image>
+#       securityContext:
+#         runAsUser: 0
+#         runAsNonRoot: false
+#         readOnlyRootFilesystem: false
+#         allowPrivilegeEscalation: true
+#         capabilities:
+#           add: [NET_ADMIN]
+#       envFrom:
+#         - secretRef: { name: harness-wg-config }
+#       volumeMounts:
+#         - { name: dev-net-tun, mountPath: /dev/net/tun }
+#       readinessProbe:
+#         exec:
+#           command: [sh, -c, "wg show wg0 latest-handshakes | awk '$2 > 0 {ok=1} END {exit !ok}'"]
+#         initialDelaySeconds: 5
+#         periodSeconds: 15
+#         failureThreshold: 4
+#
+# with, at the top level:
+#
+#   volumes:
+#     - name: dev-net-tun
+#       hostPath: { path: /dev/net/tun, type: CharDevice }
 connectivity:
+  tunnels: []
+  # Legacy single-sidecar form. Equivalent to a `tunnels` entry named `tunnel`.
+  # The default args are a kubectl port-forward loop reaching a Coordinador
+  # pooler — a dev convenience; production should reach it over VNet peering,
+  # Private Link or PostgREST instead.
   tunnel:
     enabled: false
     image: bitnami/kubectl:1.30
