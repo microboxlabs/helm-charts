@@ -69,28 +69,19 @@ Name of the Secret this chart creates for credentials given as literals.
 {{- end }}
 
 {{/*
-Every credential channel, so the Secret and the env block agree on what exists
-without either restating the list.
-*/}}
-{{- define "miot-dashboard-server.credentialChannels" -}}
-{{- $jwt := .Values.auth.jwt -}}
-{{- list
-      (dict "literal" $jwt.publicKey.value "existingSecret" $jwt.publicKey.existingSecret "managedKey" "jwt-public-key")
-      (dict "literal" $jwt.secret.value "existingSecret" $jwt.secret.existingSecret "managedKey" "jwt-secret")
-      (dict "literal" .Values.store.postgres.url "existingSecret" .Values.store.postgres.existingSecret "managedKey" "postgres-url")
-      (dict "literal" .Values.tenants.serviceValue "existingSecret" .Values.tenants.existingSecret "managedKey" "tenants-service-value")
-      (dict "literal" .Values.scopes.serviceValue "existingSecret" .Values.scopes.existingSecret "managedKey" "scopes-service-value")
-   | toJson -}}
-{{- end }}
-
-{{/*
 Whether any credential was given as a literal, and so needs a chart-managed
 Secret. A channel that names an existingSecret contributes nothing.
+
+The pairs must stay in step with templates/secret.yaml, which writes the keys.
 */}}
 {{- define "miot-dashboard-server.shouldRenderCredentialsSecret" -}}
+{{- $jwt := .Values.auth.jwt -}}
 {{- $needed := false -}}
-{{- range (include "miot-dashboard-server.credentialChannels" . | fromJsonArray) -}}
-{{- if and (not .existingSecret) .literal -}}{{- $needed = true -}}{{- end -}}
+{{- range (list $jwt.publicKey $jwt.secret .Values.tenants .Values.scopes) -}}
+{{- if and (not .existingSecret) (or .value .serviceValue) -}}{{- $needed = true -}}{{- end -}}
+{{- end -}}
+{{- if and (not .Values.store.postgres.existingSecret) .Values.store.postgres.url -}}
+{{- $needed = true -}}
 {{- end -}}
 {{- $needed -}}
 {{- end }}
@@ -145,6 +136,12 @@ single source of truth for what "unset" means.
   value: {{ printf "%s/dashboards.db" $data | quote }}
 {{- end }}
 {{- if eq $store.kind "postgres" }}
+{{- /* Without a URL from either channel the env var below would point at a
+       Secret nothing renders, and the Pod would sit in
+       CreateContainerConfigError rather than say what is missing. */}}
+{{- if and (not $store.postgres.url) (not $store.postgres.existingSecret) }}
+{{- fail "store.kind is postgres, so set store.postgres.url or store.postgres.existingSecret" }}
+{{- end }}
 - name: MIOT_DASHBOARD_POSTGRES_URL
   valueFrom:
     secretKeyRef:

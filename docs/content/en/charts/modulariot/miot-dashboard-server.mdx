@@ -6,29 +6,43 @@ for embeddable dashboards, addressed as
 
 ## Prerequisites
 
-- Kubernetes 1.19+
+- Kubernetes 1.20+ — the chart sets `fsGroupChangePolicy`, which 1.19 silently drops
 - Helm 3.0+
 - An identity provider that issues the bearer tokens callers will present
 - A service that answers tenant entitlement and scope membership, over **https**
 
 ## Installation
 
+Both commands below carry the whole minimum. A shorter one installs a server
+that either exits at startup or refuses every request — see the next section.
+
 ### Standalone
 
 ```bash
 helm install dashboards microboxlabs/miot-dashboard-server \
   --namespace modulariot \
+  --create-namespace \
   --set auth.jwt.issuer=https://issuer.example/ \
-  --set auth.jwt.audience=<audience> \
-  --set auth.jwt.jwksUrl=https://issuer.example/.well-known/jwks.json
+  --set 'auth.jwt.audience=your-api-audience' \
+  --set auth.jwt.jwksUrl=https://issuer.example/.well-known/jwks.json \
+  --set 'tenants.url=https://host.example/people/{userId}/tenants/{tenantId}' \
+  --set 'scopes.url=https://host.example/people/{userId}/scopes/{scopeId}'
 ```
 
 ### As part of the umbrella chart
 
+The umbrella defaults it to disabled, and enabling it alone is not enough:
+
 ```bash
 helm install modulariot microboxlabs/modulariot \
   --namespace modulariot \
-  --set miot-dashboard-server.enabled=true
+  --create-namespace \
+  --set miot-dashboard-server.enabled=true \
+  --set miot-dashboard-server.auth.jwt.issuer=https://issuer.example/ \
+  --set 'miot-dashboard-server.auth.jwt.audience=your-api-audience' \
+  --set miot-dashboard-server.auth.jwt.jwksUrl=https://issuer.example/.well-known/jwks.json \
+  --set 'miot-dashboard-server.tenants.url=https://host.example/people/{userId}/tenants/{tenantId}' \
+  --set 'miot-dashboard-server.scopes.url=https://host.example/people/{userId}/scopes/{scopeId}'
 ```
 
 ## Two things it refuses to do
@@ -135,7 +149,7 @@ rather than listening.
 auth:
   jwt:
     issuer: https://auth.example/
-    audience: <audience>
+    audience: your-api-audience
     jwksUrl: https://auth.example/.well-known/jwks.json
     claims:
       user: email
