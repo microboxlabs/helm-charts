@@ -21,6 +21,7 @@ that either exits at startup or refuses every request — see the next section.
 ```bash
 helm install dashboards microboxlabs/miot-dashboard-server \
   --namespace modulariot \
+  --create-namespace \
   --set auth.jwt.issuer=https://issuer.example/ \
   --set 'auth.jwt.audience=your-api-audience' \
   --set auth.jwt.jwksUrl=https://issuer.example/.well-known/jwks.json \
@@ -35,6 +36,7 @@ The umbrella defaults it to disabled, and enabling it alone is not enough:
 ```bash
 helm install modulariot microboxlabs/modulariot \
   --namespace modulariot \
+  --create-namespace \
   --set miot-dashboard-server.enabled=true \
   --set miot-dashboard-server.auth.jwt.issuer=https://issuer.example/ \
   --set 'miot-dashboard-server.auth.jwt.audience=your-api-audience' \
