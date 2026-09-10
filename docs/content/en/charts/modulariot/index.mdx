@@ -10,6 +10,7 @@ The umbrella chart includes the following sub-charts:
 |-----------|-------------|
 | [miot-app](/en/charts/modulariot/miot-app) | Main Next.js application with authentication and IoT features |
 | [miot-docs](/en/charts/modulariot/miot-docs) | Documentation site built with Nextra |
+| [miot-dashboard-server](/en/charts/modulariot/miot-dashboard-server) | Persistence, identity and tenancy for embeddable dashboards — opt-in, default disabled |
 | [miot-harness](/en/charts/modulariot/miot-harness) | Multi-agent FastAPI backend (ASK MIOT) — opt-in, default disabled |
 | [miot-web-site](/en/charts/modulariot/miot-web-site) | Marketing website |
 | [miot-modulith](/en/charts/miot-modulith) | Quarkus modulith backend — fleet, driver and resource management |
@@ -65,6 +66,7 @@ helm install modulariot microboxlabs/modulariot \
 | `miot-web-site.enabled` | Deploy website | `true` |
 | `miot-modulith.enabled` | Deploy Quarkus modulith backend | `true` |
 | `miot-harness.enabled` | Deploy multi-agent harness | `false` |
+| `miot-dashboard-server.enabled` | Deploy the dashboard server | `false` |
 
 ### Sub-chart Configuration
 
@@ -87,6 +89,7 @@ See individual chart documentation for all available parameters:
 - [miot-app parameters](/en/charts/modulariot/miot-app#parameters)
 - [miot-docs parameters](/en/charts/modulariot/miot-docs#parameters)
 - [miot-harness parameters](/en/charts/modulariot/miot-harness#parameters)
+- [miot-dashboard-server parameters](/en/charts/modulariot/miot-dashboard-server#parameters)
 - [miot-web-site parameters](/en/charts/modulariot/miot-web-site#parameters)
 - [miot-modulith parameters](/en/charts/miot-modulith#parameters)
 

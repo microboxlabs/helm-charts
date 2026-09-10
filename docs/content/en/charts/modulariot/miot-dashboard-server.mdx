@@ -1,0 +1,150 @@
+# miot-dashboard-server Chart
+
+Deploys `@microboxlabs/miot-dashboard-server`: persistence, identity and tenancy
+for embeddable dashboards, addressed as
+`/tenants/{tenantId}/scopes/{scopeId}/dashboards`.
+
+## Prerequisites
+
+- Kubernetes 1.19+
+- Helm 3.0+
+- An identity provider that issues the bearer tokens callers will present
+- A service that answers tenant entitlement and scope membership, over **https**
+
+## Installation
+
+### Standalone
+
+```bash
+helm install dashboards microboxlabs/miot-dashboard-server \
+  --namespace modulariot \
+  --set auth.jwt.issuer=https://issuer.example/ \
+  --set auth.jwt.audience=<audience> \
+  --set auth.jwt.jwksUrl=https://issuer.example/.well-known/jwks.json
+```
+
+### As part of the umbrella chart
+
+```bash
+helm install modulariot microboxlabs/modulariot \
+  --namespace modulariot \
+  --set miot-dashboard-server.enabled=true
+```
+
+## Two things it refuses to do
+
+| | |
+|---|---|
+| Start without an identity provider | The image binds `0.0.0.0`, and unverified header identity is only accepted on loopback. With no `auth.jwt.*` the pod exits at startup instead of listening. |
+| Ask an authority over plain http | `tenants.url` and `scopes.url` decide who gets in, so they must be https (loopback excepted). A redirect is refused rather than followed. |
+
+With neither authority URL set, both fall back to the seed file — and with no
+seed that is a `403` on every request.
+
+## Parameters
+
+### Image
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `image.repository` | Image repository | `ghcr.io/microboxlabs/miot-dashboard-server` |
+| `image.tag` | Image tag | `latest` |
+| `image.pullPolicy` | Pull policy | `Always` |
+
+### Deployment
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `replicaCount` | Replicas. One writer: the sqlite store is a single file. | `1` |
+| `strategy` | Update strategy | `{type: Recreate}` |
+| `service.port` | Port, container and Service | `3070` |
+| `resources` | Resource requests and limits | `{}` |
+| `ingress.enabled` | Publish it outside the cluster | `false` |
+
+### Storage
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `store.kind` | `memory`, `sqlite` or `postgres` | `sqlite` |
+| `store.postgres.url` / `.existingSecret` | Connection string, literal or by Secret | `""` |
+| `documents.kind` | Where config bodies live: `inline`, `fs`, `s3`, `gcs` | `fs` |
+| `persistence.enabled` | Claim a volume rather than an emptyDir | `true` |
+| `persistence.size` | Volume size | `1Gi` |
+| `persistence.storageClass` | Storage class | `""` |
+| `persistence.mountPath` | Where the sqlite file and documents go | `/data` |
+
+The shipped image carries neither `pg` nor a cloud storage SDK, so
+`store.kind: postgres` and `documents.kind: s3`/`gcs` need an image built with
+them.
+
+### Identity
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `auth.jwt.issuer` | Exact `iss` to require | `""` |
+| `auth.jwt.audience` | Required `aud`; comma-separated for several | `""` |
+| `auth.jwt.jwksUrl` | JWKS endpoint — RS256 | `""` |
+| `auth.jwt.publicKey.value` / `.existingSecret` | PEM — RS256 | `""` |
+| `auth.jwt.secret.value` / `.existingSecret` | Shared secret — HS256 | `""` |
+| `auth.jwt.claims.user` | Claim carrying the caller | server default |
+| `auth.jwt.claims.groups` | Claim carrying their groups | server default |
+
+Exactly one key source. The algorithm follows from which one it is, so "accept
+either" cannot be configured — that is the algorithm-confusion attack.
+
+The ticket scheme is supported by the server but not modelled here; reach it
+through `extraEnv`.
+
+### Authorization
+
+`tenants` and `scopes` take the same keys.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `.url` | Endpoint, over `{userId}` `{tenantId}` `{scopeId}` | `""` |
+| `.method` | `GET`, or `POST` to ask in a JSON body | server default |
+| `.serviceHeader` / `.serviceValue` | This server's own credential for asking about other people | `""` |
+| `.existingSecret` / `.existingSecretKey` | That credential by Secret reference | `""` |
+| `.cacheSeconds` / `.negativeCacheSeconds` | How long an answer is reused | server defaults |
+| `.timeoutMs` | Before the lookup gives up | server default |
+| `tenants.entitledPath` | Dotted path to a boolean, for a host that answers 200 either way | `""` |
+| `scopes.rolePath` | Dotted path to the role in the answer | server default |
+| `scopes.roleMap` | `<host role>=<role>` pairs | `""` |
+
+A `GET` tenant URL must contain both `{userId}` and `{tenantId}`, and a `GET`
+scope URL both `{userId}` and `{scopeId}` — otherwise every caller asks the
+same question and one yes answers for all of them.
+
+Roles are `Coordinator`, `Editor`, `Contributor` and `Consumer`. Without a
+`roleMap` the host's answer must already be one of them.
+
+### Probes
+
+| Path | Answers |
+|------|---------|
+| `/livez`, `/health` | liveness |
+| `/readyz` | readiness |
+
+None reaches the store. The store is proved at startup instead: migrations run
+before the listener opens, so a server that cannot reach its database exits
+rather than listening.
+
+## Example: membership from Alfresco
+
+```yaml
+auth:
+  jwt:
+    issuer: https://auth.example/
+    audience: <audience>
+    jwksUrl: https://auth.example/.well-known/jwks.json
+    claims:
+      user: email
+
+scopes:
+  url: https://ecm.example/alfresco/api/-default-/public/alfresco/versions/1/people/{userId}/sites/{scopeId}
+  rolePath: entry.role
+  roleMap: SiteManager=Coordinator,SiteCollaborator=Editor,SiteContributor=Contributor,SiteConsumer=Consumer
+  serviceHeader: authorization
+  existingSecret: dashboards-credentials
+  existingSecretKey: ecm-authorization
+```

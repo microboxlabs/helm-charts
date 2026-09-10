@@ -1,0 +1,263 @@
+# Default values for miot-dashboard-server.
+#
+# Keys below map onto the environment variables `@microboxlabs/miot-dashboard-server`
+# reads (all prefixed `MIOT_DASHBOARD_`). Two conventions keep the surface slim:
+#
+#   * A key with a concrete default is always rendered.
+#   * A key defaulting to `null` or `""` is rendered only when set — unset means
+#     "use the server's own default", stated in the trailing comment. The chart
+#     never re-states those defaults, so it cannot drift from them.
+#
+# Credentials are always projected via secretKeyRef, never as literal Pod env.
+
+# One writer. The sqlite store is a single file on a ReadWriteOnce volume, so a
+# second replica is not extra capacity, it is two processes writing one
+# database. Scale by moving to `store.kind: postgres` first.
+replicaCount: 1
+
+# Recreate, for the same reason miot-harness uses it: single replica on a
+# ReadWriteOnce PVC. RollingUpdate starts the new pod before terminating the
+# old one, and if the new pod lands on another node the disk cannot attach to
+# both — the rollout wedges at zero ready replicas. Recreate detaches first and
+# costs a few seconds of downtime instead.
+strategy:
+  type: Recreate
+
+image:
+  repository: ghcr.io/microboxlabs/miot-dashboard-server
+  # `latest` is mutable, so the pull policy has to be Always or a node keeps
+  # serving whatever it cached. Pin a `sha-<short>` tag per environment and the
+  # policy stops mattering.
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+# The image runs as UID 1001. fsGroup is what makes a dynamically provisioned
+# PVC writable without loosening the container security context.
+podSecurityContext:
+  fsGroup: 1001
+  fsGroupChangePolicy: OnRootMismatch
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  # Everything the server writes goes to the mounted volume.
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  # Matches the image's EXPOSE and its PORT default.
+  port: 3070
+
+# Off by default. The server is normally reached in-cluster — by the modulith's
+# proxy, or by an app mounting it — and exposing it publicly means its own
+# identity configuration is the only thing between the internet and every
+# tenant's dashboards.
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: dashboards.modulariot.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+resources: {}
+  # limits:
+  #   cpu: "1"
+  #   memory: 512Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# Neither probe reaches the store, by design. The store is proved at startup
+# instead: migrations run before the listener opens, so a server that cannot
+# reach its database exits rather than listening.
+livenessProbe:
+  httpGet:
+    path: /livez
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+  initialDelaySeconds: 3
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+volumes: []
+volumeMounts: []
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# =============================================================================
+# Server configuration
+# =============================================================================
+
+# Mounted under this prefix, when something else owns the root of the host.
+basePath: ""              # MIOT_DASHBOARD_BASE_PATH
+
+# Serve the contract at /openapi.yaml and render it at /docs. Both are the
+# shape of the API, not anyone's data, but they are also unauthenticated.
+docs: false               # MIOT_DASHBOARD_DOCS
+
+# Only needed when a browser calls this server directly from another origin.
+# A server behind the modulith's proxy is same-origin and needs none of it.
+cors:
+  origins: []             # MIOT_DASHBOARD_CORS_ORIGINS
+  headers: []             # MIOT_DASHBOARD_CORS_HEADERS
+  credentials: null       # MIOT_DASHBOARD_CORS_CREDENTIALS
+
+# Where dashboards live.
+#
+#   memory    discarded on restart; for a demo
+#   sqlite    one file on the mounted volume (default)
+#   postgres  a database server; the image does not ship `pg`, so this needs
+#             an image built with it
+store:
+  kind: sqlite            # MIOT_DASHBOARD_STORE
+  postgres:
+    url: ""               # literal; the chart stores it in a managed Secret
+    existingSecret: ""    # reference a Secret instead (production)
+    existingSecretKey: "url"
+    poolSize: null              # null → 10
+    connectionTimeoutMs: null   # null → 5000
+
+# Where dashboard config bodies live. `inline` keeps them in the store; `fs`
+# writes them beside the sqlite file. `s3`/`gcs` need an image built with the
+# corresponding SDK.
+documents:
+  kind: fs                # MIOT_DASHBOARD_DOCUMENTS
+  bucket: ""              # s3/gcs only
+  prefix: ""
+  region: ""              # s3 only
+
+# Unreferenced documents are swept periodically.
+orphan:
+  sweepIntervalSeconds: null   # null → 3600; 0 never sweeps
+  minAgeSeconds: null          # null → 86400; never 0, see the package README
+
+# A JSON file of memberships and dashboards, read at startup. "example" is the
+# one bundled with the package. Seeds skip slugs that already exist, so this is
+# safe to leave set across restarts.
+seed:
+  path: ""                # MIOT_DASHBOARD_SEED
+
+# The store lives here. Turning this off means dashboards do not survive the
+# pod: the container's root filesystem is read-only, so the mount is created
+# either way — an emptyDir instead of a claim.
+persistence:
+  enabled: true
+  existingClaim: ""
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+  annotations: {}
+  # The image's default sqlite and document paths are under this directory.
+  mountPath: /data
+
+# =============================================================================
+# Identity: who the caller is
+# =============================================================================
+# The image binds 0.0.0.0, and the server refuses unverified header identity on
+# anything but loopback, so one of these must be configured or the pod exits at
+# startup with a configuration error rather than listening.
+#
+# The ticket scheme (a credential this server hands back to its emitter for
+# validation) is supported by the server but not modelled here — no environment
+# uses it. Set MIOT_DASHBOARD_TICKET_HEADER, MIOT_DASHBOARD_TICKET_VALIDATE_URL
+# and the rest through `extraEnv` if you need it.
+auth:
+  jwt:
+    issuer: ""            # MIOT_DASHBOARD_JWT_ISSUER — exact `iss` to require
+    # One value, or several separated by commas.
+    audience: ""          # MIOT_DASHBOARD_JWT_AUDIENCE
+    # Exactly one key source. It decides the algorithm — a JWKS endpoint or a
+    # public key means RS256, a shared secret means HS256 — so "accept either"
+    # cannot be configured, which is the algorithm-confusion attack.
+    jwksUrl: ""           # MIOT_DASHBOARD_JWT_JWKS_URL (public; not a secret)
+    # PEM, for RS256 without a JWKS endpoint.
+    publicKey:
+      value: ""           # literal; the chart stores it in a managed Secret
+      existingSecret: ""  # reference a Secret instead (production)
+      existingSecretKey: "public-key"
+    # Shared secret, for HS256.
+    secret:
+      value: ""
+      existingSecret: ""
+      existingSecretKey: "secret"
+    # Which claims carry the caller. Unset means the server's own defaults.
+    claims:
+      user: ""            # MIOT_DASHBOARD_JWT_USER_CLAIM
+      groups: ""          # MIOT_DASHBOARD_JWT_GROUPS_CLAIM
+      displayName: ""     # MIOT_DASHBOARD_JWT_NAME_CLAIM
+    clockToleranceSeconds: null
+
+# =============================================================================
+# Authorization: which tenants and scopes the caller may act in
+# =============================================================================
+# Both default to the seed file, which is right for a demo and wrong for a
+# deployment — with no seed every request is refused 403, and the server says
+# so at startup. Point them at whatever already answers "is this person a
+# member", and a grant made there applies without reissuing anyone's token.
+
+tenants:
+  url: ""                 # over {userId} {tenantId}; a GET must contain both
+  method: ""              # GET (default) or POST, which asks in a JSON body
+  entitledPath: ""        # dotted path to a boolean, for a host that 200s either way
+  absentStatus: ""        # statuses meaning "not entitled"; default 404
+  cacheSeconds: null      # null → 60
+  negativeCacheSeconds: null   # null → 30
+  timeoutMs: null         # null → 5000
+  # This server's own credential for asking about other people. The value is a
+  # credential: set it through a Secret, not inline, outside local use.
+  serviceHeader: ""       # header name, e.g. authorization
+  serviceValue: ""        # literal; the chart stores it in a managed Secret
+  existingSecret: ""
+  existingSecretKey: "service-value"
+
+scopes:
+  url: ""                 # over {userId} {tenantId} {scopeId}; a GET needs userId and scopeId
+  method: ""
+  rolePath: ""            # dotted path to the role in the answer; default `role`
+  # `<host role>=<role>` pairs. Without it the host's answer must already be
+  # one of Coordinator, Editor, Contributor, Consumer.
+  roleMap: ""
+  absentStatus: ""
+  cacheSeconds: null
+  negativeCacheSeconds: null
+  timeoutMs: null
+  serviceHeader: ""
+  serviceValue: ""
+  existingSecret: ""
+  existingSecretKey: "service-value"
+
+# Appended verbatim, for variables this chart does not model yet.
+extraEnv: []
+extraEnvFrom: []
