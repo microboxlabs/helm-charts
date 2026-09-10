@@ -102,6 +102,28 @@ miot-modulith:
 miot-harness:
   enabled: false
 
+# MIOT dashboard server — persistence, identity and tenancy for embeddable
+# dashboards. Default disabled: it is a stateful component (a volume holding
+# every tenant's dashboards) and it refuses to start without an identity
+# provider, so it has to be configured before it is turned on.
+#
+# miot-dashboard-server:
+#   enabled: true
+#   auth:
+#     jwt:
+#       issuer: https://issuer.example/
+#       audience: <the audience your tokens carry>
+#       jwksUrl: https://issuer.example/.well-known/jwks.json
+#   tenants:
+#     url: https://host.example/people/{userId}/tenants/{tenantId}
+#   scopes:
+#     url: https://host.example/people/{userId}/scopes/{scopeId}
+#
+# Both authority URLs must be https — the answer decides who gets in, so it
+# cannot travel where it could be forged.
+miot-dashboard-server:
+  enabled: false
+
 # Langfuse development observability stack. This deploys stateful PostgreSQL,
 # Valkey, MinIO, and ClickHouse dependencies, so it remains opt-in.
 miot-observability:

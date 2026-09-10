@@ -10,6 +10,9 @@ Enabled components:
 {{- if index .Values "miot-app" "enabled" }}
   - Main Application (miot-app)
 {{- end }}
+{{- if index .Values "miot-dashboard-server" "enabled" }}
+  - Dashboard Server (miot-dashboard-server)
+{{- end }}
 
 1. Get the application URLs:
 

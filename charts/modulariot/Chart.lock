@@ -17,5 +17,8 @@ dependencies:
 - name: miot-observability
   repository: file://../miot-observability
   version: 0.1.0
-digest: sha256:ee4723ee6230ad09cf01a476ba9485c52544644ebb69239de4caaaa0c37448e4
-generated: "2026-09-09T14:23:19.868298-03:00"
+- name: miot-dashboard-server
+  repository: file://../miot-dashboard-server
+  version: 0.1.0
+digest: sha256:6845cc20f6de86d4a5ac8b5bff6bd4368e05b477b613fdde7aa20aeacb41e4ad
+generated: "2026-09-10T11:17:29.950443-03:00"

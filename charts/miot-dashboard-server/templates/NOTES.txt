@@ -1,0 +1,28 @@
+The MIOT dashboard server is deployed as {{ include "miot-dashboard-server.fullname" . }}.
+
+In-cluster address:
+  http://{{ include "miot-dashboard-server.fullname" . }}:{{ .Values.service.port }}
+
+Reach it from here:
+  kubectl port-forward svc/{{ include "miot-dashboard-server.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+  curl http://localhost:{{ .Values.service.port }}/livez
+
+Dashboards are stored in {{ .Values.store.kind }}
+{{- if eq .Values.store.kind "sqlite" }} at {{ trimSuffix "/" .Values.persistence.mountPath }}/dashboards.db
+{{- if not .Values.persistence.enabled }}, on an emptyDir — they do not survive the pod
+{{- end }}
+{{- end }}.
+
+{{- if not (or .Values.auth.jwt.issuer .Values.extraEnv) }}
+
+WARNING: no identity provider is configured. The server refuses unverified
+header identity anywhere but loopback, so this pod will exit at startup
+rather than listen. Set auth.jwt.issuer, auth.jwt.audience and one key
+source (auth.jwt.jwksUrl, auth.jwt.publicKey or auth.jwt.secret).
+{{- end }}
+{{- if not (and .Values.tenants.url .Values.scopes.url) }}
+
+NOTE: {{ if not .Values.tenants.url }}tenant entitlement{{ end }}{{ if and (not .Values.tenants.url) (not .Values.scopes.url) }} and {{ end }}{{ if not .Values.scopes.url }}scope membership{{ end }} still comes from the seed file.
+With no seed that is a 403 on every request. Point tenants.url and
+scopes.url at whatever already answers "is this person a member".
+{{- end }}
