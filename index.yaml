@@ -516,6 +516,29 @@ entries:
     urls:
     - https://github.com/microboxlabs/helm-charts/releases/download/miot-calendar-0.1.0/miot-calendar-0.1.0.tgz
     version: 0.1.0
+  miot-dashboard-server:
+  - apiVersion: v2
+    appVersion: 0.1.0
+    created: "2026-09-10T14:33:18.856481745Z"
+    description: A Helm chart for the MIOT dashboard server — persistence, identity
+      and tenancy for embeddable dashboards
+    digest: bb8d32f9b8e66d375ceab57c26678828cfb0fdf7b735d8cefde0e32db46ee484
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - modulariot
+    - dashboards
+    - nodejs
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: miot-dashboard-server
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/miot-dashboard-server-0.1.0/miot-dashboard-server-0.1.0.tgz
+    version: 0.1.0
   miot-docs:
   - apiVersion: v2
     appVersion: latest
@@ -1176,6 +1199,58 @@ entries:
   modulariot:
   - apiVersion: v2
     appVersion: 0.5.20
+    created: "2026-09-10T14:33:19.115566608Z"
+    dependencies:
+    - condition: miot-docs.enabled
+      name: miot-docs
+      repository: file://../miot-docs
+      version: 0.1.1
+    - condition: miot-web-site.enabled
+      name: miot-web-site
+      repository: file://../miot-web-site
+      version: 0.1.0
+    - condition: miot-app.enabled
+      name: miot-app
+      repository: file://../miot-app
+      version: 0.3.3
+    - condition: miot-modulith.enabled
+      name: miot-modulith
+      repository: file://../miot-modulith
+      version: 0.6.0
+    - condition: miot-harness.enabled
+      name: miot-harness
+      repository: file://../miot-harness
+      version: 0.7.0
+    - condition: miot-observability.enabled
+      name: miot-observability
+      repository: file://../miot-observability
+      version: 0.1.0
+    - condition: miot-dashboard-server.enabled
+      name: miot-dashboard-server
+      repository: file://../miot-dashboard-server
+      version: 0.1.0
+    description: An umbrella Helm chart for ModularIoT platform - includes docs, website,
+      and main app
+    digest: ef193037a0e7ab709c6ff56829372b36416d1cd3f8198d2054e2b35c0c373966
+    home: https://github.com/microboxlabs/modulariot
+    keywords:
+    - modulariot
+    - iot
+    - platform
+    - umbrella
+    maintainers:
+    - email: dev@microboxlabs.com
+      name: MicroboxLabs
+      url: https://microboxlabs.com
+    name: modulariot
+    sources:
+    - https://github.com/microboxlabs/modulariot
+    type: application
+    urls:
+    - https://github.com/microboxlabs/helm-charts/releases/download/modulariot-0.8.0/modulariot-0.8.0.tgz
+    version: 0.8.0
+  - apiVersion: v2
+    appVersion: 0.5.20
     created: "2026-09-09T17:34:23.698320793Z"
     dependencies:
     - condition: miot-docs.enabled
@@ -1627,4 +1702,4 @@ entries:
     urls:
     - quarkus-sse/quarkus-sse-0.1.0.tgz
     version: 0.1.0
-generated: "2026-09-09T17:34:23.698450948Z"
+generated: "2026-09-10T14:33:19.11566462Z"
