@@ -2,7 +2,7 @@ apiVersion: v2
 name: miot-dashboard-server
 description: A Helm chart for the MIOT dashboard server — persistence, identity and tenancy for embeddable dashboards
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "0.1.0"
 keywords:
   - modulariot

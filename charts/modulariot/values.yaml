@@ -112,7 +112,7 @@ miot-harness:
 #   auth:
 #     jwt:
 #       issuer: https://issuer.example/
-#       audience: <the audience your tokens carry>
+#       audience: your-api-audience
 #       jwksUrl: https://issuer.example/.well-known/jwks.json
 #   tenants:
 #     url: https://host.example/people/{userId}/tenants/{tenantId}

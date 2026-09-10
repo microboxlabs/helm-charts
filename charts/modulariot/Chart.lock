@@ -19,6 +19,6 @@ dependencies:
   version: 0.1.0
 - name: miot-dashboard-server
   repository: file://../miot-dashboard-server
-  version: 0.1.0
-digest: sha256:6845cc20f6de86d4a5ac8b5bff6bd4368e05b477b613fdde7aa20aeacb41e4ad
-generated: "2026-09-10T11:17:29.950443-03:00"
+  version: 0.1.1
+digest: sha256:1d1c2b8e58f1c6de256814c377f9ffef428f6a709866909dc483b8778dfded26
+generated: "2026-09-10T11:37:23.16863-03:00"

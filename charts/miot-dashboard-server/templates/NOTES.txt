@@ -1,3 +1,5 @@
+{{- $jwt := .Values.auth.jwt }}
+{{- $keySource := or $jwt.jwksUrl $jwt.publicKey.value $jwt.publicKey.existingSecret $jwt.secret.value $jwt.secret.existingSecret }}
 The MIOT dashboard server is deployed as {{ include "miot-dashboard-server.fullname" . }}.
 
 In-cluster address:
@@ -13,16 +15,19 @@ Dashboards are stored in {{ .Values.store.kind }}
 {{- end }}
 {{- end }}.
 
-{{- if not (or .Values.auth.jwt.issuer .Values.extraEnv) }}
+{{- if not (and $jwt.issuer $jwt.audience $keySource) }}
 
-WARNING: no identity provider is configured. The server refuses unverified
-header identity anywhere but loopback, so this pod will exit at startup
-rather than listen. Set auth.jwt.issuer, auth.jwt.audience and one key
-source (auth.jwt.jwksUrl, auth.jwt.publicKey or auth.jwt.secret).
+WARNING: identity is incompletely configured
+{{- if not $jwt.issuer }}, auth.jwt.issuer is unset{{ end }}
+{{- if not $jwt.audience }}, auth.jwt.audience is unset{{ end }}
+{{- if not $keySource }}, no key source is set (auth.jwt.jwksUrl, auth.jwt.publicKey or auth.jwt.secret){{ end }}.
+The server refuses unverified header identity anywhere but loopback, so this
+pod exits at startup rather than listening — unless extraEnv supplies what is
+missing, which this chart cannot check.
 {{- end }}
 {{- if not (and .Values.tenants.url .Values.scopes.url) }}
 
-NOTE: {{ if not .Values.tenants.url }}tenant entitlement{{ end }}{{ if and (not .Values.tenants.url) (not .Values.scopes.url) }} and {{ end }}{{ if not .Values.scopes.url }}scope membership{{ end }} still comes from the seed file.
+NOTE: {{ if not .Values.tenants.url }}tenant entitlement{{ end }}{{ if and (not .Values.tenants.url) (not .Values.scopes.url) }} and {{ end }}{{ if not .Values.scopes.url }}scope membership{{ end }} still {{ if and (not .Values.tenants.url) (not .Values.scopes.url) }}come{{ else }}comes{{ end }} from the seed file.
 With no seed that is a 403 on every request. Point tenants.url and
 scopes.url at whatever already answers "is this person a member".
 {{- end }}
