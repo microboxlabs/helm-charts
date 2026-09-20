@@ -258,6 +258,25 @@ scopes:
   existingSecret: ""
   existingSecretKey: "service-value"
 
+# =============================================================================
+# Trusted proxy: a caller that already resolved the membership
+# =============================================================================
+# A shared secret with an authenticated proxy in front of this server, such as
+# the modulith's /api/v1/orgs/{slug}/dashboards route. A request carrying the
+# key in X-Miot-Proxy-Key may also carry the tenant, scope and role it resolved,
+# and this server uses those instead of asking `tenants` and `scopes`. The
+# bearer token is still verified, and the asserted user must match it.
+#
+# At least 32 characters, or the pod exits at startup. Generate one with
+# `openssl rand -hex 32` and set the same value on the proxy.
+#
+# Unset, the assertion headers are ignored and membership comes from `tenants`
+# and `scopes` above.
+proxy:
+  key: ""                 # literal; the chart stores it in a managed Secret
+  existingSecret: ""      # reference a Secret instead (production)
+  existingSecretKey: "proxy-key"
+
 # Appended verbatim, for variables this chart does not model yet.
 extraEnv: []
 extraEnvFrom: []
