@@ -77,8 +77,8 @@ The pairs must stay in step with templates/secret.yaml, which writes the keys.
 {{- define "miot-dashboard-server.shouldRenderCredentialsSecret" -}}
 {{- $jwt := .Values.auth.jwt -}}
 {{- $needed := false -}}
-{{- range (list $jwt.publicKey $jwt.secret .Values.tenants .Values.scopes) -}}
-{{- if and (not .existingSecret) (or .value .serviceValue) -}}{{- $needed = true -}}{{- end -}}
+{{- range (list $jwt.publicKey $jwt.secret .Values.tenants .Values.scopes .Values.proxy) -}}
+{{- if and (not .existingSecret) (or .value .serviceValue .key) -}}{{- $needed = true -}}{{- end -}}
 {{- end -}}
 {{- if and (not .Values.store.postgres.existingSecret) .Values.store.postgres.url -}}
 {{- $needed = true -}}
@@ -194,6 +194,12 @@ single source of truth for what "unset" means.
 {{- include "miot-dashboard-server.envIfSet" (list "MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE" $jwt.clockToleranceSeconds) }}
 {{- include "miot-dashboard-server.authorityEnv" (list . .Values.tenants "TENANTS" "tenants-service-value") }}
 {{- include "miot-dashboard-server.authorityEnv" (list . .Values.scopes "SCOPES" "scopes-service-value") }}
+{{- if or .Values.proxy.key .Values.proxy.existingSecret }}
+- name: MIOT_DASHBOARD_PROXY_KEY
+  valueFrom:
+    secretKeyRef:
+      {{- include "miot-dashboard-server.credentialRef" (list . .Values.proxy "proxy-key") | nindent 6 }}
+{{- end }}
 {{- end }}
 
 {{/*
