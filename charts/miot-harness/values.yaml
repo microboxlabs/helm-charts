@@ -280,31 +280,22 @@ nexo:
   searchPath: null             # null → "nexo"    MIOT_HARNESS_NEXO_SEARCH_PATH
   explainCostThreshold: null   # null → 10000.0   MIOT_HARNESS_NEXO_EXPLAIN_COST_THRESHOLD
 
-# Agent graph (MIOT_HARNESS_AGENTS_*). All null → harness built-in defaults.
+# Agent loop (MIOT_HARNESS_AGENTS_*): the one model that answers a run.
+# All null → harness built-in defaults.
 agents:
-  maxTurns: null               # null → 8
-  criticEnabled: null          # null → false
-  supervisorMode: null         # null → "rule" ("rule" | "llm")
-  models:
-    filterExpert: null         # null → "claude-haiku-4-5"
-    analyst: null              # null → "claude-sonnet-4-6"
-    synthesizer: null          # null → "claude-sonnet-4-6"
-    critic: null               # null → "claude-sonnet-4-6"
-    summarizer: null           # null → "claude-haiku-4-5"
-  # Synthesizer SSE streaming with extended thinking. `false` is the
-  # production kill switch (falls back to non-streaming .ainvoke()).
-  synthesizerStream: null          # null → true
-  # Extended-thinking token budget; 0 disables thinking entirely.
-  synthesizerThinkingBudget: null  # null → 4096
+  model: null            # null → "claude-sonnet-4-6"; default conversation model
+  # Other models a run may name, as a JSON list string, e.g.
+  # '["claude-opus-4-8"]'. The default model is always allowed.
+  models: null           # null → []
+  effort: null           # null → "high"; adaptive-thinking models
+  thinkingBudget: null   # null → 4096; other models; 0 turns thinking off
+  maxTurns: null         # null → 12; model calls per run
+  advisorModel: null     # null → "claude-opus-4-8"; ask_advisor seat
+  workhorseModel: null   # null → "claude-sonnet-4-6"; delegate seat
+  summarizerModel: null  # null → "claude-haiku-4-5"; conversation compaction
 
-# Intent router — runs on EVERY auto-mode request. Defaults to a claude-*
-# model, so a missing ANTHROPIC_API_KEY 500s every auto request.
-intentRouter:
-  model: null                  # null → "claude-haiku-4-5"
-  confidenceThreshold: null    # null → 0.7 (below it → keyword-router fallback)
-
-# Conversation-memory hydration cap, in tokens.
-conversationTokenBudget: null  # null → 24000
+# Token budget for the conversation history replayed to the model.
+conversationToolTokenBudget: null  # null → 48000
 
 # Signed identity header (X-MIOT-Identity, HMAC-SHA256). When a signing key
 # is present, tenant/user ids in request bodies are ignored in favor of the

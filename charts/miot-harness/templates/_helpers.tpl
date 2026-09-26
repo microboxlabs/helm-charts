@@ -117,7 +117,7 @@ Container env for the harness. Three groups:
   2. Optional knobs — rendered only when the value is set (non-null and
      non-empty), so unset keys fall back to the harness built-in defaults
      and the chart never re-states them. Explicit `false` / `0` ARE
-     rendered (e.g. agents.synthesizerStream kill switch).
+     rendered (e.g. agents.thinkingBudget: 0).
   3. Credentials via secretKeyRef (never literal values).
 */}}
 {{- define "miot-harness.env" -}}
@@ -166,19 +166,15 @@ Container env for the harness. Three groups:
     (list "MIOT_HARNESS_DATASOURCE_FRESHNESS_REFUSE_MINUTES" .Values.datasource.freshnessRefuseMinutes)
     (list "MIOT_HARNESS_NEXO_SEARCH_PATH" .Values.nexo.searchPath)
     (list "MIOT_HARNESS_NEXO_EXPLAIN_COST_THRESHOLD" .Values.nexo.explainCostThreshold)
-    (list "MIOT_HARNESS_AGENTS_MAX_TURNS" .Values.agents.maxTurns)
-    (list "MIOT_HARNESS_AGENTS_CRITIC_ENABLED" .Values.agents.criticEnabled)
-    (list "MIOT_HARNESS_AGENTS_SUPERVISOR_MODE" .Values.agents.supervisorMode)
-    (list "MIOT_HARNESS_AGENTS_FILTER_EXPERT_MODEL" .Values.agents.models.filterExpert)
-    (list "MIOT_HARNESS_AGENTS_ANALYST_MODEL" .Values.agents.models.analyst)
-    (list "MIOT_HARNESS_AGENTS_SYNTHESIZER_MODEL" .Values.agents.models.synthesizer)
-    (list "MIOT_HARNESS_AGENTS_CRITIC_MODEL" .Values.agents.models.critic)
-    (list "MIOT_HARNESS_AGENTS_SUMMARIZER_MODEL" .Values.agents.models.summarizer)
-    (list "MIOT_HARNESS_AGENTS_SYNTHESIZER_STREAM" .Values.agents.synthesizerStream)
-    (list "MIOT_HARNESS_AGENTS_SYNTHESIZER_THINKING_BUDGET" .Values.agents.synthesizerThinkingBudget)
-    (list "MIOT_HARNESS_INTENT_ROUTER_MODEL" .Values.intentRouter.model)
-    (list "MIOT_HARNESS_INTENT_ROUTER_CONFIDENCE_THRESHOLD" .Values.intentRouter.confidenceThreshold)
-    (list "MIOT_HARNESS_CONVERSATION_TOKEN_BUDGET" .Values.conversationTokenBudget)
+    (list "MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL" .Values.agents.model)
+    (list "MIOT_HARNESS_AGENTS_AGENT_LOOP_MODELS" .Values.agents.models)
+    (list "MIOT_HARNESS_AGENTS_AGENT_LOOP_EFFORT" .Values.agents.effort)
+    (list "MIOT_HARNESS_AGENTS_AGENT_LOOP_THINKING_BUDGET" .Values.agents.thinkingBudget)
+    (list "MIOT_HARNESS_AGENTS_AGENT_LOOP_MAX_TURNS" .Values.agents.maxTurns)
+    (list "MIOT_HARNESS_AGENTS_ADVISOR_MODEL" .Values.agents.advisorModel)
+    (list "MIOT_HARNESS_AGENTS_WORKHORSE_MODEL" .Values.agents.workhorseModel)
+    (list "MIOT_HARNESS_AGENTS_SUMMARIZER_MODEL" .Values.agents.summarizerModel)
+    (list "MIOT_HARNESS_CONVERSATION_TOOL_TOKEN_BUDGET" .Values.conversationToolTokenBudget)
     (list "MIOT_HARNESS_IDENTITY_SKEW_SECONDS" .Values.identity.skewSeconds)
     (list "MIOT_HARNESS_LANGFUSE_HOST" .Values.observability.langfuse.host)
 }}
