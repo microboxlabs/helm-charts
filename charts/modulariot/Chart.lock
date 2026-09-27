@@ -13,12 +13,12 @@ dependencies:
   version: 0.6.0
 - name: miot-harness
   repository: file://../miot-harness
-  version: 0.7.0
+  version: 0.8.0
 - name: miot-observability
   repository: file://../miot-observability
   version: 0.1.0
 - name: miot-dashboard-server
   repository: file://../miot-dashboard-server
   version: 0.1.2
-digest: sha256:3c26cdfe9f4e8915b27a9b3bbca4d09cb5f15831309272db7a7f486c5d15f157
-generated: "2026-09-20T19:18:21.493664-03:00"
+digest: sha256:df969fa83428edb82469a81029b76f6806b9b5127047acdc7f11b4f2ba8097f9
+generated: "2026-09-26T21:29:42.6322-03:00"
