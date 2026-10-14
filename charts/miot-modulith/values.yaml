@@ -117,8 +117,6 @@ autoscaling:
 components:
   fleet:
     enabled: true
-  driver:
-    enabled: false
   tracking:
     enabled: false
   gateway:

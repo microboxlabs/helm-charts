@@ -69,8 +69,6 @@ miot-modulith:
   components:
     fleet:
       enabled: true
-    driver:
-      enabled: false
   ingress:
     enabled: false
     hosts:
