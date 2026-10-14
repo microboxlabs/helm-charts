@@ -2,7 +2,6 @@ ModularIoT Modulith has been deployed!
 
 Components enabled:
   - fleet:          {{ .Values.components.fleet.enabled }}
-  - driver:         {{ .Values.components.driver.enabled }}
   - tracking:       {{ .Values.components.tracking.enabled }}
   - gateway:        {{ .Values.components.gateway.enabled }}
   - integrations:   {{ .Values.components.integrations.enabled }}

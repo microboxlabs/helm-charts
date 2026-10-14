@@ -118,8 +118,6 @@ spec:
             # Modulith component selection
             - name: MIOT_COMPONENT_FLEET_ENABLED
               value: {{ .Values.components.fleet.enabled | quote }}
-            - name: MIOT_COMPONENT_DRIVER_ENABLED
-              value: {{ .Values.components.driver.enabled | quote }}
             - name: MIOT_COMPONENT_TRACKING_ENABLED
               value: {{ .Values.components.tracking.enabled | quote }}
             - name: MIOT_COMPONENT_GATEWAY_ENABLED
