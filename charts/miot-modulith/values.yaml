@@ -127,6 +127,8 @@ components:
     enabled: false
   symptoms:
     enabled: false
+  trips:
+    enabled: false
 
 # PostgreSQL database configuration.
 # The modulith uses both JDBC (Flyway migrations) and reactive (Hibernate Reactive Panache)

@@ -128,6 +128,8 @@ spec:
               value: {{ .Values.components.conversational.enabled | quote }}
             - name: MIOT_COMPONENT_SYMPTOMS_ENABLED
               value: {{ .Values.components.symptoms.enabled | quote }}
+            - name: MIOT_COMPONENT_TRIPS_ENABLED
+              value: {{ .Values.components.trips.enabled | quote }}
             {{- if .Values.symptoms.routes }}
             - name: MIOT_SYMPTOMS_ROUTES_FILE
               value: {{ .Values.symptoms.routesFile | quote }}
