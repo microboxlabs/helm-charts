@@ -10,7 +10,7 @@ dependencies:
   version: 0.3.3
 - name: miot-modulith
   repository: file://../miot-modulith
-  version: 0.6.1
+  version: 0.6.2
 - name: miot-harness
   repository: file://../miot-harness
   version: 0.8.0
@@ -20,5 +20,5 @@ dependencies:
 - name: miot-dashboard-server
   repository: file://../miot-dashboard-server
   version: 0.1.2
-digest: sha256:d97a6db0f4fd53c5d19f06c37c3b8d2c27410cddcc4b4c079fba772093abdce0
-generated: "2026-10-14T18:37:50.882473-03:00"
+digest: sha256:38adcce3091d109f71f03b73ed8c553216b706ee47a58555120da74671d46f6d
+generated: "2026-10-24T06:14:52.738163-03:00"
