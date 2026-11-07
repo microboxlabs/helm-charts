@@ -26,11 +26,19 @@ tests:
       keda.cooldownPeriod: 120
       keda.triggers:
         - type: prometheus
+          name: backlog
+          authenticationRef:
+            name: backlog-auth
+            kind: ClusterTriggerAuthentication
           metadata:
             serverAddress: http://prometheus.monitoring:9090
             query: sum(example_backlog)
             threshold: "100"
             activationThreshold: "10"
+        - type: cpu
+          metricType: Utilization
+          metadata:
+            value: "80"
     asserts:
       - template: deployment.yaml
         notExists:
@@ -73,12 +81,22 @@ tests:
           value: 120
       - template: scaledobject.yaml
         equal:
-          path: spec.triggers[0].metadata.serverAddress
-          value: http://prometheus.monitoring:9090
-      - template: scaledobject.yaml
-        equal:
-          path: spec.triggers[0].metadata.activationThreshold
-          value: "10"
+          path: spec.triggers
+          value:
+            - type: prometheus
+              name: backlog
+              authenticationRef:
+                name: backlog-auth
+                kind: ClusterTriggerAuthentication
+              metadata:
+                serverAddress: http://prometheus.monitoring:9090
+                query: sum(example_backlog)
+                threshold: "100"
+                activationThreshold: "10"
+            - type: cpu
+              metricType: Utilization
+              metadata:
+                value: "80"
       - template: scaledobject.yaml
         notExists:
           path: spec.advanced

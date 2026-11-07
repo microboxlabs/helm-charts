@@ -251,7 +251,7 @@ keda:
         activationThreshold: "100"
 ```
 
-KEDA sets the replica count to the query value divided by `threshold`, rounded up, within `minReplicas` and `maxReplicas`. With `minReplicas: 0`, KEDA scales to 0 while the value is at or below `activationThreshold`.
+For this Prometheus trigger, the replica-count recommendation is the query value divided by `threshold`, rounded up, within `minReplicas` and `maxReplicas`. The current count can differ: the example's 300-second scale-down stabilization window can retain a higher count after the backlog decreases. With `minReplicas: 0`, KEDA can scale to 0 when the value stays at or below `activationThreshold` for `cooldownPeriod`.
 
 ### Metrics Parameters
 

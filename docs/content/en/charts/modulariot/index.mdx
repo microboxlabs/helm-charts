@@ -129,10 +129,12 @@ miot-symptoms-engine:
       - type: prometheus
         metadata:
           serverAddress: http://prometheus.monitoring:9090
-          query: sum(pulsar_subscription_back_log{subscription="<subscription>"})
+          query: sum(pulsar_subscription_back_log{topic="persistent://<tenant>/<namespace>/<topic>",subscription="<subscription>"})
           threshold: "1000"
           activationThreshold: "100"
 ```
+
+Replace the topic and subscription placeholders with the engine's values. If the metrics include partition suffixes in the `topic` label, use `topic=~"persistent://<tenant>/<namespace>/<topic>(-partition-[0-9]+)?"` to sum that topic's partitions; escape any regex metacharacters in the actual topic name. If partitions have a separate label, keep the exact topic filter above and let `sum` aggregate them.
 
 Values under `miot-modulith` are not copied to the engine. Give it its own database, auth, messaging and `symptoms` values. See [Symptom Engine Instance](/en/charts/miot-modulith#symptom-engine-instance).
 
