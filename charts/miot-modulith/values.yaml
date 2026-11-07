@@ -13,6 +13,9 @@ image:
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+# Optional compatibility label version. Chart.yaml remains the package version.
+# Umbrellas pin this to preserve existing Pod templates during opt-in additions.
+chartLabelVersion: ""
 
 serviceAccount:
   create: true

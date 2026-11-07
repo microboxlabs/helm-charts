@@ -108,6 +108,8 @@ See individual chart documentation for all available parameters:
 | `miot-symptoms-engine.components.symptoms.enabled` | `true` (all other components `false`) |
 | `miot-symptoms-engine.flyway.migrateAtStart` | `false` |
 
+The primary `miot-modulith.chartLabelVersion` stays at `0.6.2` to preserve existing manifests and Pod templates; its package version is `0.7.0`. The engine uses the new chart label. `flyway.migrateAtStart: false` disables only the Quarkus extension's migrations: the current image's programmatic migrator still runs, and the engine needs migration privileges.
+
 ```bash
 helm upgrade --install modulariot microboxlabs/modulariot \
   --namespace modulariot \

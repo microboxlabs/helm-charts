@@ -181,3 +181,45 @@ tests:
             name: fork-filters
             mountPath: /config/fork
             readOnly: true
+
+  - it: enables fork rules against an existing filters ConfigMap
+    set:
+      fork.enabled: true
+      fork.existingFiltersConfigMap: shared-fork-filters
+      fork.rules:
+        - id: canary
+          paths: [/v1/asset/track]
+          filterFile: /config/fork/asset-ids.txt
+          targets:
+            - id: mirror
+              mirrorHost: https://mirror.example.invalid
+    asserts:
+      - template: configmap-fork-filters.yaml
+        hasDocuments:
+          count: 0
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FORK_ENABLED
+            value: "true"
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FORK_RULES_0__FILTER_FILE
+            value: /config/fork/asset-ids.txt
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.volumes
+          content:
+            name: fork-filters
+            configMap:
+              name: shared-fork-filters
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: fork-filters
+            mountPath: /config/fork
+            readOnly: true

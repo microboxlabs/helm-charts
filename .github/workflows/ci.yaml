@@ -55,7 +55,9 @@ jobs:
           done
 
       - name: Render modulariot with miot-symptoms-engine
-        run: charts/modulariot/tests/render-symptoms-engine.sh
+        run: |
+          python3 -m pip install 'PyYAML>=6,<7'
+          charts/modulariot/tests/render-symptoms-engine.sh
 
       - name: Lint Alfresco charts
         run: |

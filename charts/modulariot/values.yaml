@@ -63,6 +63,9 @@ miot-app:
 # ModularIoT Quarkus Modulith
 miot-modulith:
   enabled: true
+  # Preserve existing manifests, including Pod labels, when the engine is off.
+  # The dependency/package version is still 0.7.0 (see Chart.yaml).
+  chartLabelVersion: "0.6.2"
   image:
     repository: ghcr.io/microboxlabs/miot-srv
     tag: "latest"
@@ -159,7 +162,9 @@ miot-symptoms-engine:
       enabled: true
     trips:
       enabled: false
-  # Leave migrations to the miot-modulith instance.
+  # Disables only the Quarkus extension's startup migrations. The image's
+  # programmatic FlywayMigrator still runs for DB-backed components, so the
+  # engine currently needs migration privileges too.
   flyway:
     migrateAtStart: false
   oidc:

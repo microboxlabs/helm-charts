@@ -62,6 +62,7 @@ helm install miot-modulith mbl-charts/miot-modulith -f values.yaml
 | `replicaCount` | Number of pod replicas | `1` |
 | `nameOverride` | Override chart name | `""` |
 | `fullnameOverride` | Override full name | `""` |
+| `chartLabelVersion` | Compatibility override for the `helm.sh/chart` label; empty uses the package version | `""` |
 | `podAnnotations` | Pod annotations | `{}` |
 | `podLabels` | Pod labels | `{}` |
 | `podSecurityContext` | Pod security context | `{}` |
@@ -451,7 +452,9 @@ With the umbrella defaults the engine:
 - runs 2 replicas (`replicaCount`, or `autoscaling.*` for an HPA)
 - has no Service, Ingress, ApisixRoute or ServiceMonitor (`service.enabled: false`)
 - turns on only `components.symptoms`
-- does not run Flyway migrations and does not set OIDC env vars
+- disables the Quarkus Flyway extension's startup migrations and does not set OIDC env vars
+
+The current image also runs a programmatic `FlywayMigrator` for active database-backed components, including symptoms. It does not honor `flyway.migrateAtStart`, so the engine still needs migration privileges. Apply schema changes before starting the engine. Running it with a database account without migration privileges requires an application image with a separate switch for the programmatic migrator; this chart cannot provide that switch for existing images.
 
 All resources are named `<release>-miot-symptoms-engine`, so they do not clash with `<release>-miot-modulith`. The engine takes every parameter on this page under the `miot-symptoms-engine` key. Values set under `miot-modulith` are not copied. Set database, auth, messaging and symptoms values for the engine as well:
 
@@ -470,8 +473,10 @@ miot-symptoms-engine:
       username: miot
       existingSecret: miot-db
   symptoms:
-    # Reuse the routes rendered by the miot-modulith instance,
-    # or set `routes` to render <release>-miot-symptoms-engine-symptoms-routes.
+    # This ConfigMap must exist before the engine Pods can start.
+    # Set non-empty miot-modulith.symptoms.routes and leave that instance's
+    # existingRoutesConfigMap empty to have the umbrella create it.
+    # For engine-owned routes, remove existingRoutesConfigMap and set routes.
     existingRoutesConfigMap: <release>-miot-modulith-symptoms-routes
     pulsar:
       serviceUrl: pulsar://pulsar.example.svc:6650
@@ -500,7 +505,7 @@ Once deployed, the following endpoints are available:
 
 - **New:** `service.enabled` (default `true`). Set `false` for an instance that takes no HTTP traffic.
 - **New:** `symptoms.existingRoutesConfigMap` and `fork.existingFiltersConfigMap` mount an existing ConfigMap.
-- No change to rendered resources with existing values.
+- The `modulariot` umbrella pins the primary instance's `chartLabelVersion` to `0.6.2`, preserving existing manifests byte-for-byte when the engine is disabled. The package/dependency version remains `0.7.0`. Standalone installs use the package version in `helm.sh/chart` unless `chartLabelVersion` is set explicitly.
 
 ### To 0.3.0
 
