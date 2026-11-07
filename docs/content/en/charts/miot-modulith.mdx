@@ -218,6 +218,41 @@ The modulith uses both a JDBC datasource (Flyway migrations) and a reactive data
 | `autoscaling.maxReplicas` | Maximum replicas | `10` |
 | `autoscaling.targetCPUUtilizationPercentage` | Target CPU utilization | `80` |
 
+### KEDA Parameters
+
+Requires KEDA in the cluster (`keda.sh/v1alpha1`). When `keda.enabled` is true, the chart renders a `ScaledObject` for its Deployment and the Deployment has no `spec.replicas`. Rendering fails if `autoscaling.enabled` is also true, or if `keda.triggers` is empty.
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `keda.enabled` | Render a KEDA `ScaledObject` | `false` |
+| `keda.minReplicas` | `minReplicaCount` | `1` |
+| `keda.maxReplicas` | `maxReplicaCount` | `5` |
+| `keda.pollingInterval` | Seconds between trigger checks | `30` |
+| `keda.cooldownPeriod` | Seconds after the last active trigger before scaling to 0 (only with `minReplicas: 0`) | `300` |
+| `keda.behavior` | HPA behavior, rendered as `advanced.horizontalPodAutoscalerConfig.behavior` | `{}` |
+| `keda.triggers` | KEDA triggers, rendered as given | `[]` |
+
+**Prometheus trigger**
+
+```yaml
+keda:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus.monitoring:9090
+        query: sum(pulsar_subscription_back_log{topic="persistent://<tenant>/<namespace>/<topic>",subscription="<subscription>"})
+        threshold: "1000"
+        activationThreshold: "100"
+```
+
+KEDA sets the replica count to the query value divided by `threshold`, rounded up, within `minReplicas` and `maxReplicas`. With `minReplicas: 0`, KEDA scales to 0 while the value is at or below `activationThreshold`.
+
 ### Metrics Parameters
 
 | Parameter | Description | Default |
@@ -449,7 +484,7 @@ miot-symptoms-engine:
 
 With the umbrella defaults the engine:
 
-- runs 2 replicas (`replicaCount`, or `autoscaling.*` for an HPA)
+- runs 2 replicas (`replicaCount`, `autoscaling.*` for an HPA, or `keda.*` for a [KEDA ScaledObject](#keda-parameters))
 - has no Service, Ingress, ApisixRoute or ServiceMonitor (`service.enabled: false`)
 - turns on only `components.symptoms`
 - disables the Quarkus Flyway extension's startup migrations and does not set OIDC env vars
@@ -500,6 +535,10 @@ Once deployed, the following endpoints are available:
 | `/q/swagger-ui` | Swagger UI |
 
 ## Upgrading
+
+### To 0.8.0
+
+- **New:** `keda.*` renders a KEDA `ScaledObject` (default off). See [KEDA Parameters](#keda-parameters).
 
 ### To 0.7.0
 
