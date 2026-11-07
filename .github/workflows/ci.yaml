@@ -44,6 +44,19 @@ jobs:
             fi
           done
 
+      - name: Unit test custom charts
+        run: |
+          plugin=https://github.com/helm-unittest/helm-unittest
+          # Helm 4 needs --verify=false; Helm 3 does not know the flag.
+          helm plugin install "$plugin" --version v1.2.1 --verify=false \
+            || helm plugin install "$plugin" --version v1.2.1
+          for tests in charts/*/tests; do
+            helm unittest "$(dirname "$tests")"
+          done
+
+      - name: Render modulariot with miot-symptoms-engine
+        run: charts/modulariot/tests/render-symptoms-engine.sh
+
       - name: Lint Alfresco charts
         run: |
           for chart in charts/alfresco/charts/*/Chart.yaml; do
