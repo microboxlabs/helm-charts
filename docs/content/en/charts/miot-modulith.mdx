@@ -74,6 +74,7 @@ helm install miot-modulith mbl-charts/miot-modulith -f values.yaml
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
+| `service.enabled` | Render the Service. `false` also skips the Ingress, ApisixRoute, ApisixTls, ServiceMonitor and test Pod | `true` |
 | `service.type` | Kubernetes service type | `ClusterIP` |
 | `service.port` | Service port | `8180` |
 
@@ -121,6 +122,7 @@ In-process symptoms dispatcher. A `rule_id` has one owner: this dispatcher or th
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `symptoms.routes` | RouteTable files for the ConfigMap (`routes.json: \| …`) | `{}` |
+| `symptoms.existingRoutesConfigMap` | Mount this existing ConfigMap at `/config/symptoms` instead of rendering one from `symptoms.routes` | `""` |
 | `symptoms.routesFile` | Path injected as `MIOT_SYMPTOMS_ROUTES_FILE` | `/config/symptoms/routes.json` |
 | `symptoms.pulsar.serviceUrl` | Pulsar URL for the `symptoms-cdc` channel | `""` |
 | `symptoms.pulsar.topic` | CDC topic | `""` |
@@ -433,6 +435,52 @@ ingress:
         - api.modulariot.example.com
 ```
 
+## Symptom Engine Instance
+
+The `modulariot` umbrella chart can deploy this chart a second time under the alias `miot-symptoms-engine`. It uses the same image as `miot-modulith` and runs as a separate Deployment, usually with more replicas and only the symptoms component.
+
+Enable it:
+
+```yaml
+miot-symptoms-engine:
+  enabled: true
+```
+
+With the umbrella defaults the engine:
+
+- runs 2 replicas (`replicaCount`, or `autoscaling.*` for an HPA)
+- has no Service, Ingress, ApisixRoute or ServiceMonitor (`service.enabled: false`)
+- turns on only `components.symptoms`
+- does not run Flyway migrations and does not set OIDC env vars
+
+All resources are named `<release>-miot-symptoms-engine`, so they do not clash with `<release>-miot-modulith`. The engine takes every parameter on this page under the `miot-symptoms-engine` key. Values set under `miot-modulith` are not copied. Set database, auth, messaging and symptoms values for the engine as well:
+
+```yaml
+miot-symptoms-engine:
+  enabled: true
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  postgresql:
+    external:
+      host: postgresql.example.svc
+      database: miot
+      username: miot
+      existingSecret: miot-db
+  symptoms:
+    # Reuse the routes rendered by the miot-modulith instance,
+    # or set `routes` to render <release>-miot-symptoms-engine-symptoms-routes.
+    existingRoutesConfigMap: <release>-miot-modulith-symptoms-routes
+    pulsar:
+      serviceUrl: pulsar://pulsar.example.svc:6650
+      topic: persistent://tenant/namespace/cdc-topic
+      subscription: miot-symptoms-dispatcher
+```
+
+To also run trips in the engine, set `components.trips.enabled: true`. A `rule_id` must have one owner: when the engine runs symptoms, turn `components.symptoms` off in `miot-modulith`. For fork filters, `fork.existingFiltersConfigMap` mounts an existing ConfigMap at `/config/fork` in the same way.
+
 ## Quarkus Endpoints
 
 Once deployed, the following endpoints are available:
@@ -447,6 +495,12 @@ Once deployed, the following endpoints are available:
 | `/q/swagger-ui` | Swagger UI |
 
 ## Upgrading
+
+### To 0.7.0
+
+- **New:** `service.enabled` (default `true`). Set `false` for an instance that takes no HTTP traffic.
+- **New:** `symptoms.existingRoutesConfigMap` and `fork.existingFiltersConfigMap` mount an existing ConfigMap.
+- No change to rendered resources with existing values.
 
 ### To 0.3.0
 
