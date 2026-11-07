@@ -128,3 +128,39 @@ miot-observability:
   enabled: false
   langfuse:
     enabled: false
+
+# Symptom engine — a second instance of the miot-modulith chart (alias
+# miot-symptoms-engine). Same image, own Deployment, ServiceAccount and
+# Secrets named <release>-miot-symptoms-engine. Takes every miot-modulith
+# value; the defaults below make it a worker with no Service that runs only
+# the symptoms component. Database, auth and messaging values are not copied
+# from the miot-modulith block: set them here too.
+# Docs: https://microboxlabs.github.io/helm-charts/en/charts/miot-modulith#symptom-engine-instance
+miot-symptoms-engine:
+  enabled: false
+  replicaCount: 2
+  image:
+    repository: ghcr.io/microboxlabs/miot-srv
+    tag: "latest"
+  service:
+    enabled: false
+  components:
+    fleet:
+      enabled: false
+    tracking:
+      enabled: false
+    gateway:
+      enabled: false
+    integrations:
+      enabled: false
+    conversational:
+      enabled: false
+    symptoms:
+      enabled: true
+    trips:
+      enabled: false
+  # Leave migrations to the miot-modulith instance.
+  flyway:
+    migrateAtStart: false
+  oidc:
+    authServerUrl: ""
