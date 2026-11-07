@@ -85,6 +85,31 @@ def check_instances():
     print("PASS: disabled/enabled instances, unique identities, worker defaults and opt-in exposure")
 
 
+def check_keda():
+    trigger = {"type": "prometheus", "metadata": {
+        "serverAddress": "http://prometheus.monitoring:9090",
+        "query": "sum(example_backlog)", "threshold": "100", "activationThreshold": "10",
+    }}
+    for release in ("rel", "miot-modulith", ENGINE):
+        docs = documents(render(CHART, {ENGINE: {
+            "enabled": True, "keda": {"enabled": True, "triggers": [trigger]},
+        }}, release))
+        scaled = [doc for doc in docs if doc["kind"] == "ScaledObject"]
+        assert len(scaled) == 1, release
+        engine = next(doc for doc in docs if doc["kind"] == "Deployment"
+                      and doc["metadata"]["labels"]["app.kubernetes.io/name"] == ENGINE)
+        assert scaled[0]["spec"]["scaleTargetRef"]["name"] == engine["metadata"]["name"], release
+        assert "replicas" not in engine["spec"], release
+    both = subprocess.run(
+        ["helm", "template", "rel", str(CHART), "--set", ENGINE + ".enabled=true",
+         "--set", ENGINE + ".autoscaling.enabled=true", "--set", ENGINE + ".keda.enabled=true",
+         "--set-json", ENGINE + ".keda.triggers=" + json.dumps([trigger])],
+        capture_output=True, text=True,
+    )
+    assert both.returncode != 0 and "both true" in both.stderr, both.stderr
+    print("PASS: engine KEDA ScaledObject target, no replicas, autoscaling+keda fails")
+
+
 def legacy_cases(baseline):
     yield "defaults", {}
     # Include every YAML values file under tests/examples/ci, even fixtures for
@@ -171,6 +196,7 @@ def main():
     args = parser.parse_args()
     (ROOT / ".cache").mkdir(exist_ok=True)
     check_instances()
+    check_keda()
     if args.baseline:
         check_legacy(args.baseline.resolve())
 
