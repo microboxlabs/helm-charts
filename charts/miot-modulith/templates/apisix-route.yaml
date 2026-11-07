@@ -1,4 +1,4 @@
-{{- if .Values.apisixRoute.enabled -}}
+{{- if and .Values.apisixRoute.enabled .Values.service.enabled -}}
 {{- $fullName := include "miot-modulith.fullname" . -}}
 {{- $svcPort := .Values.service.port -}}
 apiVersion: apisix.apache.org/v2

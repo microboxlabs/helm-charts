@@ -1,4 +1,4 @@
-{{- if and .Values.apisixRoute.enabled .Values.apisixRoute.tls -}}
+{{- if and .Values.apisixRoute.enabled .Values.service.enabled .Values.apisixRoute.tls -}}
 {{- range .Values.apisixRoute.tls }}
 apiVersion: apisix.apache.org/v2
 kind: ApisixTls

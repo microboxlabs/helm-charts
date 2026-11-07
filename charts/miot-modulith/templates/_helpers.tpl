@@ -108,3 +108,25 @@ Get the Auth0 credentials secret name
 {{- include "miot-modulith.fullname" . }}-auth-credentials
 {{- end }}
 {{- end }}
+
+{{/*
+Name of the ConfigMap mounted at /config/fork, or empty when none.
+*/}}
+{{- define "miot-modulith.forkFiltersConfigMap" -}}
+{{- if .Values.fork.existingFiltersConfigMap }}
+{{- .Values.fork.existingFiltersConfigMap }}
+{{- else if .Values.fork.filters }}
+{{- include "miot-modulith.fullname" . }}-fork-filters
+{{- end }}
+{{- end }}
+
+{{/*
+Name of the ConfigMap mounted at /config/symptoms, or empty when none.
+*/}}
+{{- define "miot-modulith.symptomsRoutesConfigMap" -}}
+{{- if .Values.symptoms.existingRoutesConfigMap }}
+{{- .Values.symptoms.existingRoutesConfigMap }}
+{{- else if .Values.symptoms.routes }}
+{{- include "miot-modulith.fullname" . }}-symptoms-routes
+{{- end }}
+{{- end }}

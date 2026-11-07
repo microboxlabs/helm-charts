@@ -1,4 +1,4 @@
-{{- if .Values.symptoms.routes }}
+{{- if and .Values.symptoms.routes (not .Values.symptoms.existingRoutesConfigMap) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

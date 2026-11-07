@@ -1,3 +1,4 @@
+{{- if .Values.service.enabled }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -13,3 +14,4 @@ spec:
       command: ['wget']
       args: ['--spider', '-q', '{{ include "miot-modulith.fullname" . }}:{{ .Values.service.port }}/q/health/ready']
   restartPolicy: Never
+{{- end }}
