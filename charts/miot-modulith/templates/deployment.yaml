@@ -1,3 +1,5 @@
+{{- $forkFilters := include "miot-modulith.forkFiltersConfigMap" . }}
+{{- $symptomsRoutes := include "miot-modulith.symptomsRoutesConfigMap" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -130,7 +132,7 @@ spec:
               value: {{ .Values.components.symptoms.enabled | quote }}
             - name: MIOT_COMPONENT_TRIPS_ENABLED
               value: {{ .Values.components.trips.enabled | quote }}
-            {{- if .Values.symptoms.routes }}
+            {{- if or .Values.symptoms.routes .Values.symptoms.existingRoutesConfigMap }}
             - name: MIOT_SYMPTOMS_ROUTES_FILE
               value: {{ .Values.symptoms.routesFile | quote }}
             {{- end }}
@@ -201,36 +203,36 @@ spec:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          {{- if or .Values.volumeMounts .Values.fork.filters .Values.symptoms.routes }}
+          {{- if or .Values.volumeMounts $forkFilters $symptomsRoutes }}
           volumeMounts:
             {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-            {{- if .Values.fork.filters }}
+            {{- if $forkFilters }}
             - name: fork-filters
               mountPath: /config/fork
               readOnly: true
             {{- end }}
-            {{- if .Values.symptoms.routes }}
+            {{- if $symptomsRoutes }}
             - name: symptoms-routes
               mountPath: /config/symptoms
               readOnly: true
             {{- end }}
           {{- end }}
-      {{- if or .Values.volumes .Values.fork.filters .Values.symptoms.routes }}
+      {{- if or .Values.volumes $forkFilters $symptomsRoutes }}
       volumes:
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        {{- if .Values.fork.filters }}
+        {{- if $forkFilters }}
         - name: fork-filters
           configMap:
-            name: {{ include "miot-modulith.fullname" . }}-fork-filters
+            name: {{ $forkFilters }}
         {{- end }}
-        {{- if .Values.symptoms.routes }}
+        {{- if $symptomsRoutes }}
         - name: symptoms-routes
           configMap:
-            name: {{ include "miot-modulith.fullname" . }}-symptoms-routes
+            name: {{ $symptomsRoutes }}
         {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}

@@ -1,0 +1,225 @@
+---
+suite: extra instances (symptom engine)
+templates:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - apisix-route.yaml
+  - apisix-tls.yaml
+  - servicemonitor.yaml
+  - hpa.yaml
+  - configmap-symptoms-routes.yaml
+  - configmap-fork-filters.yaml
+  - tests/test-connection.yaml
+tests:
+  - it: renders the Service and test Pod by default
+    asserts:
+      - template: service.yaml
+        hasDocuments:
+          count: 1
+      - template: tests/test-connection.yaml
+        hasDocuments:
+          count: 1
+
+  - it: renders no Service, Ingress, ApisixRoute, ApisixTls, ServiceMonitor or test Pod when service.enabled is false
+    set:
+      service.enabled: false
+      ingress.enabled: true
+      apisixRoute.enabled: true
+      apisixRoute.tls:
+        - hosts: [api.example.invalid]
+          secretName: api-tls
+      metrics.enabled: true
+      metrics.serviceMonitor.enabled: true
+    asserts:
+      - template: service.yaml
+        hasDocuments:
+          count: 0
+      - template: ingress.yaml
+        hasDocuments:
+          count: 0
+      - template: apisix-route.yaml
+        hasDocuments:
+          count: 0
+      - template: apisix-tls.yaml
+        hasDocuments:
+          count: 0
+      - template: servicemonitor.yaml
+        hasDocuments:
+          count: 0
+      - template: tests/test-connection.yaml
+        hasDocuments:
+          count: 0
+      - template: deployment.yaml
+        hasDocuments:
+          count: 1
+
+  - it: keeps the http port and /q/health probes without a Service
+    template: deployment.yaml
+    set:
+      service.enabled: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /q/health/live
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /q/health/ready
+
+  - it: honours replicaCount
+    template: deployment.yaml
+    set:
+      replicaCount: 4
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 4
+
+  - it: drops replicas and renders an HPA when autoscaling is enabled
+    set:
+      autoscaling.enabled: true
+      autoscaling.minReplicas: 2
+      autoscaling.maxReplicas: 6
+    asserts:
+      - template: deployment.yaml
+        notExists:
+          path: spec.replicas
+      - template: hpa.yaml
+        equal:
+          path: spec.scaleTargetRef.name
+          value: RELEASE-NAME-miot-modulith
+      - template: hpa.yaml
+        equal:
+          path: spec.maxReplicas
+          value: 6
+
+  - it: runs only symptoms when the other components are off
+    template: deployment.yaml
+    set:
+      components.fleet.enabled: false
+      components.symptoms.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MIOT_COMPONENT_FLEET_ENABLED
+            value: "false"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MIOT_COMPONENT_SYMPTOMS_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MIOT_COMPONENT_GATEWAY_ENABLED
+            value: "false"
+
+  - it: names resources after the chart name, so an alias gets its own names
+    chart:
+      version: 0.7.0
+    release:
+      name: rel
+    set:
+      nameOverride: miot-symptoms-engine
+    asserts:
+      - template: deployment.yaml
+        equal:
+          path: metadata.name
+          value: rel-miot-symptoms-engine
+      - template: deployment.yaml
+        equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/name"]
+          value: miot-symptoms-engine
+
+  - it: mounts an existing routes ConfigMap and renders none of its own
+    set:
+      symptoms.existingRoutesConfigMap: rel-miot-modulith-symptoms-routes
+      symptoms.routes:
+        routes.json: "{}"
+    asserts:
+      - template: configmap-symptoms-routes.yaml
+        hasDocuments:
+          count: 0
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.volumes
+          content:
+            name: symptoms-routes
+            configMap:
+              name: rel-miot-modulith-symptoms-routes
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MIOT_SYMPTOMS_ROUTES_FILE
+            value: /config/symptoms/routes.json
+
+  - it: mounts an existing fork filters ConfigMap and renders none of its own
+    set:
+      fork.existingFiltersConfigMap: shared-fork-filters
+      fork.filters:
+        asset-ids.txt: "A1"
+    asserts:
+      - template: configmap-fork-filters.yaml
+        hasDocuments:
+          count: 0
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.volumes
+          content:
+            name: fork-filters
+            configMap:
+              name: shared-fork-filters
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: fork-filters
+            mountPath: /config/fork
+            readOnly: true
+
+  - it: enables fork rules against an existing filters ConfigMap
+    set:
+      fork.enabled: true
+      fork.existingFiltersConfigMap: shared-fork-filters
+      fork.rules:
+        - id: canary
+          paths: [/v1/asset/track]
+          filterFile: /config/fork/asset-ids.txt
+          targets:
+            - id: mirror
+              mirrorHost: https://mirror.example.invalid
+    asserts:
+      - template: configmap-fork-filters.yaml
+        hasDocuments:
+          count: 0
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FORK_ENABLED
+            value: "true"
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FORK_RULES_0__FILTER_FILE
+            value: /config/fork/asset-ids.txt
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.volumes
+          content:
+            name: fork-filters
+            configMap:
+              name: shared-fork-filters
+      - template: deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: fork-filters
+            mountPath: /config/fork
+            readOnly: true

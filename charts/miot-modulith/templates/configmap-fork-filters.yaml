@@ -1,4 +1,4 @@
-{{- if .Values.fork.filters }}
+{{- if and .Values.fork.filters (not .Values.fork.existingFiltersConfigMap) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

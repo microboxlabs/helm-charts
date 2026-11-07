@@ -1,0 +1,161 @@
+---
+# Run `helm dependency build charts/modulariot` first.
+suite: miot-symptoms-engine
+templates:
+  - charts/miot-modulith/templates/deployment.yaml
+  - charts/miot-modulith/templates/service.yaml
+  - charts/miot-modulith/templates/serviceaccount.yaml
+  - charts/miot-modulith/templates/configmap-symptoms-routes.yaml
+  - charts/miot-modulith/templates/configmap-fork-filters.yaml
+  - charts/miot-symptoms-engine/templates/deployment.yaml
+  - charts/miot-symptoms-engine/templates/service.yaml
+  - charts/miot-symptoms-engine/templates/serviceaccount.yaml
+  - charts/miot-symptoms-engine/templates/configmap-symptoms-routes.yaml
+  - charts/miot-symptoms-engine/templates/configmap-fork-filters.yaml
+release:
+  name: rel
+tests:
+  - it: keeps one modulith Deployment by default
+    asserts:
+      - template: charts/miot-modulith/templates/deployment.yaml
+        hasDocuments:
+          count: 1
+      - template: charts/miot-modulith/templates/deployment.yaml
+        equal:
+          path: spec.template.metadata.labels["helm.sh/chart"]
+          value: miot-modulith-0.6.2
+
+  - it: renders a second Deployment with its own name, selector, replicas and env
+    set:
+      miot-symptoms-engine.enabled: true
+    asserts:
+      - template: charts/miot-modulith/templates/deployment.yaml
+        equal:
+          path: metadata.name
+          value: rel-miot-modulith
+      - template: charts/miot-modulith/templates/deployment.yaml
+        equal:
+          path: spec.replicas
+          value: 1
+      - template: charts/miot-modulith/templates/deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MIOT_COMPONENT_FLEET_ENABLED
+            value: "true"
+      - template: charts/miot-symptoms-engine/templates/deployment.yaml
+        equal:
+          path: metadata.name
+          value: rel-miot-symptoms-engine
+      - template: charts/miot-symptoms-engine/templates/deployment.yaml
+        equal:
+          path: spec.template.metadata.labels["helm.sh/chart"]
+          value: miot-symptoms-engine-0.7.0
+      - template: charts/miot-symptoms-engine/templates/deployment.yaml
+        equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/name"]
+          value: miot-symptoms-engine
+      - template: charts/miot-symptoms-engine/templates/deployment.yaml
+        equal:
+          path: spec.replicas
+          value: 2
+      - template: charts/miot-symptoms-engine/templates/deployment.yaml
+        equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/microboxlabs/miot-srv:latest
+      - template: charts/miot-symptoms-engine/templates/deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MIOT_COMPONENT_FLEET_ENABLED
+            value: "false"
+      - template: charts/miot-symptoms-engine/templates/deployment.yaml
+        contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MIOT_COMPONENT_SYMPTOMS_ENABLED
+            value: "true"
+      - template: charts/miot-symptoms-engine/templates/deployment.yaml
+        equal:
+          path: spec.template.spec.serviceAccountName
+          value: rel-miot-symptoms-engine
+      - template: charts/miot-symptoms-engine/templates/serviceaccount.yaml
+        equal:
+          path: metadata.name
+          value: rel-miot-symptoms-engine
+
+  - it: renders no Service for the engine and keeps the modulith Service
+    set:
+      miot-symptoms-engine.enabled: true
+    asserts:
+      - template: charts/miot-symptoms-engine/templates/service.yaml
+        hasDocuments:
+          count: 0
+      - template: charts/miot-modulith/templates/service.yaml
+        equal:
+          path: metadata.name
+          value: rel-miot-modulith
+
+  - it: can share the modulith's routes ConfigMap
+    set:
+      miot-modulith.symptoms.routes:
+        routes.json: "{}"
+      miot-symptoms-engine.enabled: true
+      miot-symptoms-engine.symptoms.existingRoutesConfigMap: rel-miot-modulith-symptoms-routes
+    asserts:
+      - template: charts/miot-modulith/templates/configmap-symptoms-routes.yaml
+        equal:
+          path: metadata.name
+          value: rel-miot-modulith-symptoms-routes
+      - template: charts/miot-symptoms-engine/templates/configmap-symptoms-routes.yaml
+        hasDocuments:
+          count: 0
+      - template: charts/miot-symptoms-engine/templates/deployment.yaml
+        contains:
+          path: spec.template.spec.volumes
+          content:
+            name: symptoms-routes
+            configMap:
+              name: rel-miot-modulith-symptoms-routes
+
+  - it: renders its own routes ConfigMap without clashing with the modulith's
+    set:
+      miot-modulith.symptoms.routes:
+        routes.json: "{}"
+      miot-symptoms-engine.enabled: true
+      miot-symptoms-engine.symptoms.routes:
+        routes.json: "{}"
+    asserts:
+      - template: charts/miot-modulith/templates/configmap-symptoms-routes.yaml
+        equal:
+          path: metadata.name
+          value: rel-miot-modulith-symptoms-routes
+      - template: charts/miot-symptoms-engine/templates/configmap-symptoms-routes.yaml
+        equal:
+          path: metadata.name
+          value: rel-miot-symptoms-engine-symptoms-routes
+
+  - it: gives both instances distinct serviceaccounts and fork ConfigMaps
+    set:
+      miot-symptoms-engine.enabled: true
+      miot-modulith.fork.filters:
+        ids.txt: "primary"
+      miot-symptoms-engine.fork.filters:
+        ids.txt: "engine"
+    asserts:
+      - template: charts/miot-modulith/templates/serviceaccount.yaml
+        equal:
+          path: metadata.name
+          value: rel-miot-modulith
+      - template: charts/miot-symptoms-engine/templates/serviceaccount.yaml
+        equal:
+          path: metadata.name
+          value: rel-miot-symptoms-engine
+      - template: charts/miot-modulith/templates/configmap-fork-filters.yaml
+        equal:
+          path: metadata.name
+          value: rel-miot-modulith-fork-filters
+      - template: charts/miot-symptoms-engine/templates/configmap-fork-filters.yaml
+        equal:
+          path: metadata.name
+          value: rel-miot-symptoms-engine-fork-filters

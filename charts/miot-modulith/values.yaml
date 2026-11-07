@@ -13,6 +13,9 @@ image:
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+# Optional compatibility label version. Chart.yaml remains the package version.
+# Umbrellas pin this to preserve existing Pod templates during opt-in additions.
+chartLabelVersion: ""
 
 serviceAccount:
   create: true
@@ -35,6 +38,9 @@ securityContext: {}
   # runAsUser: 1000
 
 service:
+  # Set false for a worker instance that takes no HTTP traffic. Also turns
+  # off the Ingress, ApisixRoute, ApisixTls, ServiceMonitor and test Pod.
+  enabled: true
   type: ClusterIP
   port: 8180
 
@@ -203,6 +209,9 @@ fork:
   # Filter file contents — one key per line. Mounted as ConfigMap at /config/fork/.
   # Lines starting with # and blank lines are ignored by the fork engine.
   filters: {}
+  # Mount this existing ConfigMap at /config/fork instead of rendering one
+  # from `filters`. Use it to share another release's filters.
+  existingFiltersConfigMap: ""
   # Example:
   #   asset-ids.txt: |
   #     SVSX88
@@ -225,6 +234,9 @@ symptoms:
   #         }
   #       ]
   #     }
+  # Mount this existing ConfigMap at /config/symptoms instead of rendering
+  # one from `routes`. Use it to share another instance's routes.
+  existingRoutesConfigMap: ""
   routesFile: /config/symptoms/routes.json
   pulsar:
     serviceUrl: ""
