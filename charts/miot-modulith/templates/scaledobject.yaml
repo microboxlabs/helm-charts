@@ -1,0 +1,31 @@
+{{- if .Values.keda.enabled }}
+{{- if .Values.autoscaling.enabled }}
+{{- fail "autoscaling.enabled and keda.enabled are both true: enable only one (KEDA creates its own HPA)" }}
+{{- end }}
+{{- if not .Values.keda.triggers }}
+{{- fail "keda.enabled is true but keda.triggers is empty: set at least one KEDA trigger" }}
+{{- end }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "miot-modulith.fullname" . }}
+  labels:
+    {{- include "miot-modulith.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "miot-modulith.fullname" . }}
+  minReplicaCount: {{ .Values.keda.minReplicas }}
+  maxReplicaCount: {{ .Values.keda.maxReplicas }}
+  pollingInterval: {{ .Values.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.keda.cooldownPeriod }}
+  {{- with .Values.keda.behavior }}
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        {{- toYaml . | nindent 8 }}
+  {{- end }}
+  triggers:
+    {{- toYaml .Values.keda.triggers | nindent 4 }}
+{{- end }}

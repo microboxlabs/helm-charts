@@ -1,0 +1,138 @@
+---
+suite: KEDA ScaledObject
+templates:
+  - deployment.yaml
+  - scaledobject.yaml
+  - hpa.yaml
+release:
+  name: rel
+tests:
+  - it: renders no ScaledObject by default and keeps replicas
+    asserts:
+      - template: scaledobject.yaml
+        hasDocuments:
+          count: 0
+      - template: deployment.yaml
+        equal:
+          path: spec.replicas
+          value: 1
+
+  - it: renders a ScaledObject for the Deployment and drops replicas when enabled
+    set:
+      keda.enabled: true
+      keda.minReplicas: 2
+      keda.maxReplicas: 8
+      keda.pollingInterval: 15
+      keda.cooldownPeriod: 120
+      keda.triggers:
+        - type: prometheus
+          metadata:
+            serverAddress: http://prometheus.monitoring:9090
+            query: sum(example_backlog)
+            threshold: "100"
+            activationThreshold: "10"
+    asserts:
+      - template: deployment.yaml
+        notExists:
+          path: spec.replicas
+      - template: hpa.yaml
+        hasDocuments:
+          count: 0
+      - template: scaledobject.yaml
+        isKind:
+          of: ScaledObject
+      - template: scaledobject.yaml
+        isAPIVersion:
+          of: keda.sh/v1alpha1
+      - template: scaledobject.yaml
+        equal:
+          path: metadata.name
+          value: rel-miot-modulith
+      - template: scaledobject.yaml
+        equal:
+          path: spec.scaleTargetRef
+          value:
+            apiVersion: apps/v1
+            kind: Deployment
+            name: rel-miot-modulith
+      - template: scaledobject.yaml
+        equal:
+          path: spec.minReplicaCount
+          value: 2
+      - template: scaledobject.yaml
+        equal:
+          path: spec.maxReplicaCount
+          value: 8
+      - template: scaledobject.yaml
+        equal:
+          path: spec.pollingInterval
+          value: 15
+      - template: scaledobject.yaml
+        equal:
+          path: spec.cooldownPeriod
+          value: 120
+      - template: scaledobject.yaml
+        equal:
+          path: spec.triggers[0].metadata.serverAddress
+          value: http://prometheus.monitoring:9090
+      - template: scaledobject.yaml
+        equal:
+          path: spec.triggers[0].metadata.activationThreshold
+          value: "10"
+      - template: scaledobject.yaml
+        notExists:
+          path: spec.advanced
+
+  - it: passes behavior to advanced.horizontalPodAutoscalerConfig.behavior
+    template: scaledobject.yaml
+    set:
+      keda.enabled: true
+      keda.triggers:
+        - type: cpu
+          metricType: Utilization
+          metadata:
+            value: "80"
+      keda.behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 600
+    asserts:
+      - equal:
+          path: spec.advanced.horizontalPodAutoscalerConfig.behavior.scaleDown.stabilizationWindowSeconds
+          value: 600
+
+  - it: targets the aliased Deployment name
+    template: scaledobject.yaml
+    set:
+      nameOverride: miot-symptoms-engine
+      keda.enabled: true
+      keda.triggers:
+        - type: cpu
+          metricType: Utilization
+          metadata:
+            value: "80"
+    asserts:
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: rel-miot-symptoms-engine
+
+  - it: fails when autoscaling and keda are both enabled
+    template: scaledobject.yaml
+    set:
+      autoscaling.enabled: true
+      keda.enabled: true
+      keda.triggers:
+        - type: cpu
+          metricType: Utilization
+          metadata:
+            value: "80"
+    asserts:
+      - failedTemplate:
+          errorPattern: autoscaling.enabled and keda.enabled are both true
+
+  - it: fails when keda is enabled without triggers
+    template: scaledobject.yaml
+    set:
+      keda.enabled: true
+    asserts:
+      - failedTemplate:
+          errorPattern: keda.triggers is empty

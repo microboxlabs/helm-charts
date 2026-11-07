@@ -117,6 +117,27 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 
+# KEDA autoscaling. Renders a keda.sh/v1alpha1 ScaledObject for this
+# Deployment; requires KEDA in the cluster. Mutually exclusive with
+# autoscaling.enabled. When enabled, the Deployment omits spec.replicas so an
+# upgrade keeps the replica count KEDA chose.
+keda:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  pollingInterval: 30
+  cooldownPeriod: 300
+  # HPA behavior, rendered as advanced.horizontalPodAutoscalerConfig.behavior.
+  behavior: {}
+  # KEDA triggers, rendered as given. Example (Prometheus):
+  # - type: prometheus
+  #   metadata:
+  #     serverAddress: http://prometheus.monitoring:9090
+  #     query: sum(my_queue_backlog{subscription="my-subscription"})
+  #     threshold: "100"
+  #     activationThreshold: "10"
+  triggers: []
+
 # Modulith component selection.
 # Each flag maps to a MIOT_COMPONENT_*_ENABLED environment variable.
 # Quarkus MicroProfile Config resolves env vars over application.properties.
