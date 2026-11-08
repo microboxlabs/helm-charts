@@ -108,7 +108,7 @@ See individual chart documentation for all available parameters:
 | `miot-symptoms-engine.components.symptoms.enabled` | `true` (all other components `false`) |
 | `miot-symptoms-engine.flyway.migrateAtStart` | `false` |
 
-The primary `miot-modulith.chartLabelVersion` stays at `0.6.2` to preserve existing manifests and Pod templates; its package version is `0.7.0`. The engine uses the new chart label. `flyway.migrateAtStart: false` disables only the Quarkus extension's migrations: the current image's programmatic migrator still runs, and the engine needs migration privileges.
+The primary `miot-modulith.chartLabelVersion` stays at `0.6.2` to preserve existing manifests and Pod templates; its package version is `0.8.0`. The engine uses the new chart label. `flyway.migrateAtStart: false` disables only the Quarkus extension's migrations: the current image's programmatic migrator still runs, and the engine needs migration privileges.
 
 ```bash
 helm upgrade --install modulariot microboxlabs/modulariot \
@@ -116,6 +116,25 @@ helm upgrade --install modulariot microboxlabs/modulariot \
   --set miot-symptoms-engine.enabled=true \
   -f engine-values.yaml
 ```
+
+To scale the engine on the Pulsar backlog instead of `replicaCount`, set `miot-symptoms-engine.keda.*` (requires KEDA). The ScaledObject targets `<release>-miot-symptoms-engine`. See [KEDA Parameters](/en/charts/miot-modulith#keda-parameters).
+
+```yaml
+miot-symptoms-engine:
+  enabled: true
+  keda:
+    enabled: true
+    maxReplicas: 5
+    triggers:
+      - type: prometheus
+        metadata:
+          serverAddress: http://prometheus.monitoring:9090
+          query: sum(pulsar_subscription_back_log{topic="persistent://<tenant>/<namespace>/<topic>",subscription="<subscription>"})
+          threshold: "1000"
+          activationThreshold: "100"
+```
+
+Replace the topic and subscription placeholders with the engine's values. If the metrics include partition suffixes in the `topic` label, use `topic=~"persistent://<tenant>/<namespace>/<topic>(-partition-[0-9]+)?"` to sum that topic's partitions; escape any regex metacharacters in the actual topic name. If partitions have a separate label, keep the exact topic filter above and let `sum` aggregate them.
 
 Values under `miot-modulith` are not copied to the engine. Give it its own database, auth, messaging and `symptoms` values. See [Symptom Engine Instance](/en/charts/miot-modulith#symptom-engine-instance).
 
